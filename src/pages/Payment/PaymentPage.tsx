@@ -14,7 +14,7 @@ const PaymentPage: React.FC = () => {
   };
 
   const paymentNumbers = {
-    mvola: '034 12 345 67',
+    mvola: '034 99 773 93',
     orange: '032 87 654 32',
     airtel: '033 55 123 45'
   };

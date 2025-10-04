@@ -272,7 +272,10 @@ const DashboardPage: React.FC = () => {
                 </p>
                 
                 {user?.plan === 'free' && (
-                  <button className="w-full py-2 px-4 bg-gradient-to-r from-red-600 to-green-600 text-white font-medium rounded-lg hover:from-red-700 hover:to-green-700 transition-all duration-200">
+                  <button
+                    onClick={() => window.location.href = '/payment'}
+                    className="w-full py-2 px-4 bg-gradient-to-r from-red-600 to-green-600 text-white font-medium rounded-lg hover:from-red-700 hover:to-green-700 transition-all duration-200"
+                  >
                     Upgrader maintenant
                   </button>
                 )}
