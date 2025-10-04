@@ -5,24 +5,25 @@ import { CheckCircle, Star } from 'lucide-react';
 const PricingPage: React.FC = () => {
   const plans = [
     {
-      name: 'Gratuit',
-      price: '0',
-      period: 'mois',
-      description: 'Parfait pour commencer',
+      name: 'Essai 15 jours',
+      price: '3 500',
+      period: '15 jours',
+      description: 'Parfait pour découvrir',
       features: [
-        '2 téléchargements par jour',
-        'Vitesse limitée à 500 KB/s',
+        'Accès complet pendant 15 jours',
+        'Vitesse limitée à 1 MB/s',
+        '10 téléchargements par jour',
         'Support communautaire',
         'Formats basiques supportés'
       ],
       color: 'border-gray-300',
       popular: false,
-      buttonText: 'Commencer gratuitement',
+      buttonText: 'Commencer l\'essai',
       buttonColor: 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
     },
     {
       name: 'Bronze',
-      price: '1 000',
+      price: '7 000',
       period: 'mois',
       description: 'Pour un usage régulier',
       features: [
@@ -39,7 +40,7 @@ const PricingPage: React.FC = () => {
     },
     {
       name: 'Silver',
-      price: '3 000',
+      price: '10 000',
       period: 'mois',
       description: 'Le plus populaire',
       features: [
@@ -57,7 +58,7 @@ const PricingPage: React.FC = () => {
     },
     {
       name: 'Gold',
-      price: '8 000',
+      price: '15 000',
       period: 'mois',
       description: 'Pour les utilisateurs intensifs',
       features: [
