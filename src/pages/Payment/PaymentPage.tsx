@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
 import { CreditCard, Upload, CheckCircle, Clock, AlertCircle, Smartphone } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { FirebasePaymentService } from '../../services/firebasePaymentService';
+import { useNavigate } from 'react-router-dom';
 
 const PaymentPage: React.FC = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [selectedPlan, setSelectedPlan] = useState('silver');
   const [paymentMethod, setPaymentMethod] = useState('mvola');
   const [step, setStep] = useState(1);
   const [uploadedReceipt, setUploadedReceipt] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const plans = {
     bronze: { name: 'Bronze', price: 1000, duration: 'mois' },
@@ -31,9 +38,32 @@ const PaymentPage: React.FC = () => {
     }
   };
 
-  const handleSubmit = () => {
-    if (uploadedReceipt) {
-      setStep(4); // Payment submitted, waiting for validation
+  const handleSubmit = async () => {
+    if (!uploadedReceipt || !user) return;
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const plan = selectedPlan as 'bronze' | 'silver' | 'gold';
+      const method = paymentMethod as 'mvola' | 'orange' | 'airtel';
+
+      await FirebasePaymentService.createPayment({
+        userId: user.id,
+        userEmail: user.email,
+        userName: user.name,
+        plan: plan,
+        amount: plans[plan].price,
+        paymentMethod: method,
+        reference: reference
+      });
+
+      setStep(4);
+    } catch (error: any) {
+      console.error('Erreur lors de la soumission du paiement:', error);
+      setSubmitError('Erreur lors de l\'envoi du paiement. Veuillez réessayer.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -377,12 +407,18 @@ const PaymentPage: React.FC = () => {
                     </div>
                   </div>
                   
+                  {submitError && (
+                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                      <p className="text-sm text-red-800 dark:text-red-200">{submitError}</p>
+                    </div>
+                  )}
+
                   <button
                     onClick={handleSubmit}
-                    disabled={!uploadedReceipt}
+                    disabled={!uploadedReceipt || isSubmitting}
                     className="w-full py-3 px-4 bg-gradient-to-r from-red-600 to-green-600 text-white font-semibold rounded-lg hover:from-red-700 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                   >
-                    Envoyer et finaliser
+                    {isSubmitting ? 'Envoi en cours...' : 'Envoyer et finaliser'}
                   </button>
                 </div>
               </div>

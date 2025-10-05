@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { Users, CreditCard, TrendingUp, Eye, CheckCircle, XCircle, Clock, Download, Search, Link2, Activity, Key, Save, EyeOff } from 'lucide-react';
 import { FirebaseDownloadsService } from '../../services/firebaseDownloads';
 import AlldebridSettings from '../../components/Alldebrid/AlldebridSettings';
+import { FirebasePaymentService, Payment } from '../../services/firebasePaymentService';
+import { useAuth } from '../../contexts/AuthContext';
 
 const AdminPage: React.FC = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [globalStats, setGlobalStats] = useState({
     totalDownloads: 0,
@@ -12,8 +15,9 @@ const AdminPage: React.FC = () => {
     todayDownloads: 0
   });
   const [adminApiKey, setAdminApiKey] = useState('');
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loadingPayments, setLoadingPayments] = useState(true);
 
-  // Charger les statistiques globales
   React.useEffect(() => {
     const loadStats = async () => {
       try {
@@ -26,6 +30,24 @@ const AdminPage: React.FC = () => {
 
     loadStats();
   }, []);
+
+  React.useEffect(() => {
+    const loadPayments = async () => {
+      try {
+        setLoadingPayments(true);
+        const data = await FirebasePaymentService.getPendingPayments();
+        setPayments(data);
+      } catch (error) {
+        console.error('Erreur lors du chargement des paiements:', error);
+      } finally {
+        setLoadingPayments(false);
+      }
+    };
+
+    if (activeTab === 'payments') {
+      loadPayments();
+    }
+  }, [activeTab]);
   // Mock data for demonstration
   const stats = [
     { title: 'Utilisateurs actifs', value: globalStats.totalUsers.toLocaleString(), change: '+12%', icon: Users, color: 'text-blue-500 bg-blue-100 dark:bg-blue-900/20' },
@@ -34,41 +56,6 @@ const AdminPage: React.FC = () => {
     { title: 'API Alldebrid actives', value: '156', change: '+7%', icon: Activity, color: 'text-purple-500 bg-purple-100 dark:bg-purple-900/20' }
   ];
 
-  const pendingPayments = [
-    {
-      id: 1,
-      user: 'Rakoto Andry',
-      email: 'rakoto@email.com',
-      plan: 'Silver',
-      amount: '3,000 MGA',
-      method: 'MVola',
-      reference: 'MDL123456',
-      date: '2025-01-12 14:30',
-      receipt: 'receipt_1.jpg'
-    },
-    {
-      id: 2,
-      user: 'Hery Razafy',
-      email: 'hery@email.com',
-      plan: 'Gold',
-      amount: '8,000 MGA',
-      method: 'Orange Money',
-      reference: 'MDL789012',
-      date: '2025-01-12 13:15',
-      receipt: 'receipt_2.jpg'
-    },
-    {
-      id: 3,
-      user: 'Soa Ranaivo',
-      email: 'soa@email.com',
-      plan: 'Bronze',
-      amount: '1,000 MGA',
-      method: 'MVola',
-      reference: 'MDL345678',
-      date: '2025-01-12 11:45',
-      receipt: 'receipt_3.jpg'
-    }
-  ];
 
   const recentUsers = [
     { name: 'Rakoto Andry', email: 'rakoto@email.com', plan: 'Silver', status: 'Active', joined: '2025-01-12' },
@@ -77,9 +64,23 @@ const AdminPage: React.FC = () => {
     { name: 'Nivo Ratsimba', email: 'nivo@email.com', plan: 'Free', status: 'Active', joined: '2025-01-10' }
   ];
 
-  const handleValidatePayment = (paymentId: number, action: 'approve' | 'reject') => {
-    // Handle payment validation logic here
-    console.log(`Payment ${paymentId} ${action}d`);
+  const handleValidatePayment = async (paymentId: string, action: 'approve' | 'reject') => {
+    if (!user) return;
+
+    try {
+      await FirebasePaymentService.validatePayment({
+        paymentId: paymentId,
+        validatedBy: user.id,
+        status: action === 'approve' ? 'validated' : 'rejected',
+        rejectionReason: action === 'reject' ? 'Paiement refusé par l\'administrateur' : undefined
+      });
+
+      const updatedPayments = await FirebasePaymentService.getPendingPayments();
+      setPayments(updatedPayments);
+    } catch (error) {
+      console.error('Erreur lors de la validation du paiement:', error);
+      alert('Erreur lors de la validation du paiement');
+    }
   };
 
   const renderOverview = () => (
@@ -140,86 +141,117 @@ const AdminPage: React.FC = () => {
     </div>
   );
 
-  const renderPaymentValidation = () => (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Paiements en attente de validation</h3>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Validez ou rejetez les paiements des utilisateurs</p>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Utilisateur</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Plan</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Montant</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Méthode</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Référence</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {pendingPayments.map((payment) => (
-                <tr key={payment.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="px-6 py-4">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">{payment.user}</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">{payment.email}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      payment.plan === 'Bronze' 
-                        ? 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400'
-                        : payment.plan === 'Silver'
-                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-400'
-                        : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400'
-                    }`}>
-                      {payment.plan}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-white font-medium">
-                    {payment.amount}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                    {payment.method}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-white font-mono">
-                    {payment.reference}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                    {payment.date}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-2">
-                      <button className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-lg">
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleValidatePayment(payment.id, 'approve')}
-                        className="p-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg"
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleValidatePayment(payment.id, 'reject')}
-                        className="p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg"
-                      >
-                        <XCircle className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+  const renderPaymentValidation = () => {
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Paiements en attente de validation</h3>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">Validez ou rejetez les paiements des utilisateurs</p>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const data = await FirebasePaymentService.getPendingPayments();
+                    setPayments(data);
+                  } catch (error) {
+                    console.error('Erreur:', error);
+                  }
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Rafraîchir
+              </button>
+            </div>
+          </div>
+
+          {loadingPayments ? (
+            <div className="p-8 text-center">
+              <Clock className="h-12 w-12 mx-auto mb-4 text-gray-400 animate-spin" />
+              <p className="text-gray-600 dark:text-gray-400">Chargement des paiements...</p>
+            </div>
+          ) : payments.length === 0 ? (
+            <div className="p-8 text-center">
+              <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
+              <p className="text-gray-600 dark:text-gray-400">Aucun paiement en attente</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Utilisateur</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Plan</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Montant</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Méthode</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Référence</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {payments.map((payment) => (
+                    <tr key={payment.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-6 py-4">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">{payment.userName}</div>
+                          <div className="text-sm text-gray-600 dark:text-gray-400">{payment.userEmail}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
+                          payment.plan === 'bronze'
+                            ? 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400'
+                            : payment.plan === 'silver'
+                            ? 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-400'
+                            : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400'
+                        }`}>
+                          {payment.plan}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white font-medium">
+                        {payment.amount.toLocaleString()} MGA
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                        {FirebasePaymentService.formatPaymentMethod(payment.paymentMethod)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white font-mono">
+                        {payment.reference}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                        {FirebasePaymentService.formatDate(payment.createdAt)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleValidatePayment(payment.id, 'approve')}
+                            className="p-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg"
+                            title="Valider"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleValidatePayment(payment.id, 'reject')}
+                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg"
+                            title="Rejeter"
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderUserManagement = () => (
     <div className="space-y-6">
