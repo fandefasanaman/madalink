@@ -50,34 +50,34 @@ const HomePage: React.FC = () => {
 
   const plans = [
     {
-      name: 'Gratuit',
-      price: '0',
-      period: 'mois',
-      features: ['2 téléchargements/jour', 'Vitesse limitée', 'Support communautaire'],
+      name: 'Essai 15 jours',
+      price: '3 500',
+      period: '15 jours',
+      features: ['Accès complet 15 jours', 'Vitesse 1 MB/s', '10 téléchargements/jour'],
       color: 'border-gray-300',
       popular: false
     },
     {
       name: 'Bronze',
-      price: '1 000',
+      price: '7 000',
       period: 'mois',
-      features: ['50 téléchargements/jour', 'Vitesse normale', 'Support prioritaire'],
+      features: ['50 téléchargements/jour', 'Vitesse 2 MB/s', 'Support par email'],
       color: 'border-orange-400',
       popular: false
     },
     {
       name: 'Silver',
-      price: '3 000',
+      price: '10 000',
       period: 'mois',
-      features: ['Téléchargements illimités', 'Vitesse normale', 'Support prioritaire'],
+      features: ['Téléchargements illimités', 'Vitesse 2 MB/s', 'Support prioritaire'],
       color: 'border-gray-400',
       popular: true
     },
     {
       name: 'Gold',
-      price: '8 000',
+      price: '15 000',
       period: 'mois',
-      features: ['Téléchargements illimités', 'Vitesse maximale', 'Support VIP'],
+      features: ['Téléchargements illimités', 'Vitesse 10 MB/s', 'Support VIP 24/7'],
       color: 'border-yellow-400',
       popular: false
     }
