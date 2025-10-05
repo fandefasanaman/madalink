@@ -2,71 +2,40 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, Download, Clock, HardDrive, Zap, Calendar } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAlldebrid } from '../../hooks/useAlldebrid';
+import { UserStatsService, UserStats as UserStatsData } from '../../services/userStatsService';
 
 interface UserStatsProps {
   apiKey?: string;
 }
 
-interface StatsData {
-  totalDownloads: number;
-  totalSize: number;
-  averageSpeed: number;
-  timeSpent: number;
-  favoriteHost: string;
-  thisMonth: {
-    downloads: number;
-    size: number;
-  };
-  thisWeek: {
-    downloads: number;
-    size: number;
-  };
-}
-
 const UserStats: React.FC<UserStatsProps> = ({ apiKey }) => {
   const { user } = useAuth();
   const { userInfo } = useAlldebrid(apiKey);
-  const [stats, setStats] = useState<StatsData>({
-    totalDownloads: 0,
-    totalSize: 0,
-    averageSpeed: 0,
-    timeSpent: 0,
-    favoriteHost: 'N/A',
-    thisMonth: { downloads: 0, size: 0 },
-    thisWeek: { downloads: 0, size: 0 }
-  });
+  const [stats, setStats] = useState<UserStatsData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simuler des statistiques basées sur le plan utilisateur
-    const generateMockStats = () => {
-      const planMultiplier = {
-        free: 1,
-        bronze: 5,
-        silver: 15,
-        gold: 50
-      };
+    const loadStats = async () => {
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
 
-      const multiplier = planMultiplier[user?.plan as keyof typeof planMultiplier] || 1;
-
-      setStats({
-        totalDownloads: Math.floor(Math.random() * 100 * multiplier) + 10,
-        totalSize: Math.floor(Math.random() * 50000000000 * multiplier) + 1000000000, // en bytes
-        averageSpeed: Math.floor(Math.random() * 5000000) + 1000000, // bytes/sec
-        timeSpent: Math.floor(Math.random() * 100 * multiplier) + 5, // heures
-        favoriteHost: ['1fichier.com', 'mega.nz', 'rapidgator.net', 'uptobox.com'][Math.floor(Math.random() * 4)],
-        thisMonth: {
-          downloads: Math.floor(Math.random() * 50 * multiplier) + 5,
-          size: Math.floor(Math.random() * 10000000000 * multiplier) + 500000000
-        },
-        thisWeek: {
-          downloads: Math.floor(Math.random() * 20 * multiplier) + 2,
-          size: Math.floor(Math.random() * 2000000000 * multiplier) + 100000000
-        }
-      });
+      try {
+        setLoading(true);
+        console.log('UserStats: Loading stats for user:', user.id);
+        const userStats = await UserStatsService.calculateUserStats(user.id);
+        setStats(userStats);
+        console.log('UserStats: Stats loaded:', userStats);
+      } catch (error) {
+        console.error('UserStats: Error loading stats:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    generateMockStats();
-  }, [user?.plan]);
+    loadStats();
+  }, [user?.id]);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
@@ -87,9 +56,32 @@ const UserStats: React.FC<UserStatsProps> = ({ apiKey }) => {
   };
 
   const getQuotaPercentage = (): number => {
-    if (!userInfo || !userInfo.quotaTotal) return 0;
+    if (!userInfo || !userInfo.quotaTotal || userInfo.quotaTotal === 0) return 0;
     return ((userInfo.quotaTotal - userInfo.quotaLeft) / userInfo.quotaTotal) * 100;
   };
+
+  const formatChange = (change: number): string => {
+    if (change === 0) return 'Stable';
+    const sign = change > 0 ? '+' : '';
+    return `${sign}${change}% ce mois`;
+  };
+
+  if (loading || !stats) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700 animate-pulse"
+            >
+              <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const statsCards = [
     {
@@ -97,28 +89,28 @@ const UserStats: React.FC<UserStatsProps> = ({ apiKey }) => {
       value: stats.totalDownloads.toLocaleString(),
       icon: Download,
       color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/20',
-      change: '+12% ce mois'
+      change: formatChange(stats.lastMonthComparison.downloadsChange)
     },
     {
       title: 'Volume total',
-      value: formatFileSize(stats.totalSize),
+      value: formatFileSize(stats.totalCompletedSize),
       icon: HardDrive,
       color: 'text-green-600 bg-green-100 dark:bg-green-900/20',
-      change: '+8% ce mois'
+      change: formatChange(stats.lastMonthComparison.sizeChange)
     },
     {
       title: 'Vitesse moyenne',
       value: formatSpeed(stats.averageSpeed),
       icon: Zap,
       color: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20',
-      change: 'Stable'
+      change: formatChange(stats.lastMonthComparison.speedChange)
     },
     {
       title: 'Temps d\'utilisation',
       value: formatTime(stats.timeSpent),
       icon: Clock,
       color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/20',
-      change: '+15% ce mois'
+      change: formatChange(stats.lastMonthComparison.timeChange)
     }
   ];
 
@@ -153,13 +145,13 @@ const UserStats: React.FC<UserStatsProps> = ({ apiKey }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Quota Alldebrid */}
-        {userInfo && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-              <TrendingUp className="h-5 w-5 mr-2" />
-              Quota Alldebrid
-            </h3>
-            
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+            <TrendingUp className="h-5 w-5 mr-2" />
+            Quota Alldebrid
+          </h3>
+
+          {userInfo && userInfo.quotaTotal && userInfo.quotaTotal > 0 ? (
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
@@ -192,8 +184,36 @@ const UserStats: React.FC<UserStatsProps> = ({ apiKey }) => {
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="space-y-4">
+              <div className="text-center py-8">
+                <p className="text-gray-600 dark:text-gray-400 mb-2">
+                  {user?.plan === 'gold' || user?.plan === 'silver' ? 'Quota Illimité' : 'Aucun quota disponible'}
+                </p>
+                {userInfo?.isPremium && (
+                  <p className="text-sm text-green-600 dark:text-green-400 font-medium">
+                    Compte Premium Actif
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Quota restant</p>
+                  <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                    Illimité
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Statut</p>
+                  <p className={`text-lg font-bold ${userInfo?.isPremium ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'}`}>
+                    {userInfo?.isPremium ? 'Premium' : 'Chargement...'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Activité récente */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">

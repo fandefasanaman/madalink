@@ -21,6 +21,7 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
   const [magnetLink, setMagnetLink] = useState('');
   const [torrents, setTorrents] = useState<TorrentItem[]>([]);
   const [isAdding, setIsAdding] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const { addTorrent, quotaStatus, error, clearError } = useAlldebrid(apiKey);
   const { language } = useLanguage();
 
@@ -42,7 +43,10 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
       completed: 'Terminé',
       downloading: 'Téléchargement',
       waiting: 'En attente',
-      error: 'Erreur'
+      error: 'Erreur',
+      emptyField: 'Veuillez entrer un lien magnet ou hash torrent',
+      invalidFormat: 'Format invalide. Utilisez un lien magnet (magnet:?xt=urn:btih:...) ou un hash torrent (40 caractères)',
+      success: 'Torrent ajouté avec succès'
     },
     mg: {
       title: 'Mpitantana torrent',
@@ -61,24 +65,78 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
       completed: 'Vita',
       downloading: 'Maka',
       waiting: 'Miandry',
-      error: 'Tsy mety'
+      error: 'Tsy mety',
+      emptyField: 'Azafady apetaho ny lien magnet na hash',
+      invalidFormat: 'Format tsy mety. Mampiasà lien magnet na hash torrent',
+      success: 'Torrent nampiana soa aman-tsara'
     }
   };
 
   const msg = messages[language as keyof typeof messages];
 
+  const validateTorrentInput = (input: string): { valid: boolean; type: string | null; error?: string } => {
+    const trimmed = input.trim();
+
+    if (!trimmed) {
+      return { valid: false, type: null, error: msg.emptyField };
+    }
+
+    // Vérifier si c'est un lien magnet
+    if (trimmed.toLowerCase().startsWith('magnet:?xt=urn:btih:')) {
+      return { valid: true, type: 'magnet' };
+    }
+
+    // Vérifier si c'est un hash (40 caractères hexadécimaux)
+    if (/^[a-fA-F0-9]{40}$/.test(trimmed)) {
+      // Convertir le hash en lien magnet
+      return { valid: true, type: 'hash' };
+    }
+
+    return { valid: false, type: null, error: msg.invalidFormat };
+  };
+
   const handleAddTorrent = async () => {
-    if (!magnetLink.trim()) return;
+    const trimmedInput = magnetLink.trim();
+
+    if (!trimmedInput) {
+      setValidationError(msg.emptyField);
+      return;
+    }
+
+    // Valider le format
+    const validation = validateTorrentInput(trimmedInput);
+    if (!validation.valid) {
+      setValidationError(validation.error || msg.invalidFormat);
+      return;
+    }
 
     clearError();
+    setValidationError(null);
     setIsAdding(true);
 
     try {
-      const torrentInfo = await addTorrent(magnetLink.trim());
+      // Convertir le hash en magnet si nécessaire
+      let magnetToUse = trimmedInput;
+      if (validation.type === 'hash') {
+        magnetToUse = `magnet:?xt=urn:btih:${trimmedInput}`;
+      }
+
+      console.log('Adding torrent:', magnetToUse);
+      const torrentInfo = await addTorrent(magnetToUse);
+
       setTorrents(prev => [...prev, torrentInfo]);
       setMagnetLink('');
-    } catch (err) {
-      // L'erreur sera gérée par le hook
+
+      // Notification de succès
+      if ((window as any).notifications) {
+        (window as any).notifications.addNotification({
+          type: 'success',
+          message: msg.success
+        });
+      }
+    } catch (err: any) {
+      console.error('Error adding torrent:', err);
+      setValidationError(err.message || 'Erreur lors de l\'ajout du torrent');
     } finally {
       setIsAdding(false);
     }
@@ -188,10 +246,10 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
       </div>
 
       {/* Affichage des erreurs */}
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center">
-          <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-          <span className="text-red-700 dark:text-red-400 text-sm">{error}</span>
+      {(error || validationError) && (
+        <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start">
+          <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+          <span className="text-red-700 dark:text-red-400 text-sm">{error || validationError}</span>
         </div>
       )}
 

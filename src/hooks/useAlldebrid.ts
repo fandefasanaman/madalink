@@ -150,30 +150,66 @@ export const useAlldebrid = (apiKey?: string): UseAlldebridReturn => {
   }, [alldebridService, user, quotaMonitor]);
 
   const addTorrent = useCallback(async (magnetLink: string): Promise<TorrentInfo> => {
-    if (!alldebridService || !user) {
-      throw new Error('Service non initialisé');
+    console.log('useAlldebrid.addTorrent called with:', magnetLink);
+    console.log('Service available:', !!alldebridService);
+    console.log('User available:', !!user);
+
+    if (!alldebridService) {
+      const error = user?.isAdmin
+        ? 'Service Alldebrid non initialisé. Veuillez configurer la clé API dans Config.'
+        : 'Service Alldebrid non disponible. Contactez l\'administrateur.';
+      setError(error);
+      throw new Error(error);
+    }
+
+    if (!user) {
+      const error = 'Utilisateur non connecté';
+      setError(error);
+      throw new Error(error);
     }
 
     // Vérifier les quotas locaux
     if (!quotaMonitor.canAddTorrent(user.id, user.plan)) {
-      throw new Error('Quota journalier de torrents atteint. Upgradez votre plan pour plus de téléchargements.');
+      const error = 'Quota journalier de torrents atteint. Upgradez votre plan pour plus de téléchargements.';
+      setError(error);
+      throw new Error(error);
     }
 
     setIsLoading(true);
     setError(null);
 
     try {
+      console.log('Calling alldebridService.addTorrent...');
       const result = await alldebridService.addTorrent(magnetLink);
-      
+      console.log('Service returned torrent:', result);
+
+      // Enregistrer dans Firebase
+      try {
+        await FirebaseDownloadsService.addDownload({
+          userId: user.id,
+          filename: result.filename,
+          originalUrl: magnetLink,
+          unlockedUrl: '', // Pas de lien direct pour les torrents initialement
+          fileSize: result.size,
+          host: 'torrent',
+          status: 'pending',
+          progress: 0,
+          downloadSpeed: 0
+        });
+      } catch (fbError) {
+        console.error('Firebase error (non-critical):', fbError);
+      }
+
       // Enregistrer l'utilisation du quota
       quotaMonitor.recordTorrentAdd(user.id);
-      
+
       // Mettre à jour le statut des quotas
       const newStatus = quotaMonitor.getQuotaStatus(user.id, user.plan);
       setQuotaStatus(newStatus);
 
       return result;
     } catch (err: any) {
+      console.error('Exception in addTorrent:', err);
       const errorMessage = err.message || 'Erreur lors de l\'ajout du torrent';
       setError(errorMessage);
       throw new Error(errorMessage);

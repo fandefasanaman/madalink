@@ -184,23 +184,42 @@ class AlldebridService {
 
   async addTorrent(magnetLink: string): Promise<TorrentInfo> {
     try {
-      const response = await this.api.post('/magnet/upload', {
-        magnets: [magnetLink]
+      const apiKey = this.decryptApiKey(this.config.apiKey);
+      console.log('Adding torrent with magnet:', magnetLink);
+
+      const response = await this.api.post('/magnet/upload', null, {
+        params: {
+          apikey: apiKey,
+          magnets: [magnetLink]
+        }
       });
 
+      console.log('Torrent upload response:', response.data);
+
+      if (!response.data.data || !response.data.data.magnets || response.data.data.magnets.length === 0) {
+        throw new Error('Réponse invalide de l\'API Alldebrid');
+      }
+
       const torrentData = response.data.data.magnets[0];
-      
+
+      // Vérifier si le torrent a été ajouté avec succès
+      if (torrentData.error) {
+        throw new Error(torrentData.error.message || 'Erreur lors de l\'ajout du torrent');
+      }
+
       return {
-        id: torrentData.id,
-        filename: torrentData.filename,
-        size: torrentData.size,
-        status: torrentData.status,
-        progress: torrentData.downloaded / torrentData.size * 100,
-        downloadSpeed: torrentData.downloadSpeed,
+        id: torrentData.id || Date.now().toString(),
+        filename: torrentData.filename || torrentData.name || 'Torrent sans nom',
+        size: torrentData.size || 0,
+        status: torrentData.status || 'queued',
+        progress: torrentData.downloaded && torrentData.size ? (torrentData.downloaded / torrentData.size * 100) : 0,
+        downloadSpeed: torrentData.downloadSpeed || 0,
         links: torrentData.links || []
       };
     } catch (error: any) {
-      throw new Error(error.response?.data?.error?.message || 'Erreur lors de l\'ajout du torrent');
+      console.error('Error in addTorrent:', error);
+      const errorMessage = error.response?.data?.error?.message || error.message || 'Erreur lors de l\'ajout du torrent';
+      throw new Error(errorMessage);
     }
   }
 
