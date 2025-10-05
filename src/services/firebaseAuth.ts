@@ -79,17 +79,32 @@ export class FirebaseAuthService {
     }
 
     const data = userDoc.data();
+
+    const convertToDate = (timestamp: any): Date => {
+      if (!timestamp) return new Date();
+      if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+        return timestamp.toDate();
+      }
+      if (timestamp instanceof Date) {
+        return timestamp;
+      }
+      if (timestamp.seconds) {
+        return new Date(timestamp.seconds * 1000);
+      }
+      return new Date();
+    };
+
     return {
       id: userDoc.id,
       email: data.email,
       name: data.name,
       plan: data.plan || 'free',
       isAdmin: data.isAdmin || false,
-      subscriptionExpiry: data.subscriptionExpiry?.toDate(),
+      subscriptionExpiry: data.subscriptionExpiry ? convertToDate(data.subscriptionExpiry) : undefined,
       totalDownloads: data.totalDownloads || 0,
       totalBandwidth: data.totalBandwidth || 0,
-      createdAt: data.createdAt?.toDate() || new Date(),
-      updatedAt: data.updatedAt?.toDate() || new Date()
+      createdAt: convertToDate(data.createdAt),
+      updatedAt: convertToDate(data.updatedAt)
     };
   }
 
