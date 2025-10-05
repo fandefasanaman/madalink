@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Users, CreditCard, TrendingUp, Eye, CheckCircle, XCircle, Clock, Download, Search, Link2, Activity, Key, Save, EyeOff } from 'lucide-react';
+import { Users, CreditCard, TrendingUp, Eye, CheckCircle, XCircle, Clock, Download, Search, Link2, Activity, Key, Save, EyeOff, UserPlus } from 'lucide-react';
 import { FirebaseDownloadsService } from '../../services/firebaseDownloads';
 import AlldebridSettings from '../../components/Alldebrid/AlldebridSettings';
 import { FirebasePaymentService, Payment } from '../../services/firebasePaymentService';
 import { useAuth } from '../../contexts/AuthContext';
+import AddUserModal, { UserData } from '../../components/Admin/AddUserModal';
+import { FirebaseAuthService } from '../../services/firebaseAuth';
 
 const AdminPage: React.FC = () => {
   const { user } = useAuth();
@@ -17,6 +19,8 @@ const AdminPage: React.FC = () => {
   const [adminApiKey, setAdminApiKey] = useState('');
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(true);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [addUserSuccess, setAddUserSuccess] = useState<string | null>(null);
 
   React.useEffect(() => {
     const loadStats = async () => {
@@ -80,6 +84,29 @@ const AdminPage: React.FC = () => {
     } catch (error) {
       console.error('Erreur lors de la validation du paiement:', error);
       alert('Erreur lors de la validation du paiement');
+    }
+  };
+
+  const handleAddUser = async (userData: UserData) => {
+    try {
+      await FirebaseAuthService.createUserByAdmin(
+        userData.email,
+        userData.password,
+        userData.name,
+        userData.plan,
+        userData.status
+      );
+
+      setAddUserSuccess(`Utilisateur ${userData.name} créé avec succès. Mot de passe temporaire: ${userData.password}`);
+      setTimeout(() => setAddUserSuccess(null), 10000);
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-in-use') {
+        throw new Error('Cet email est déjà utilisé');
+      } else if (error.code === 'auth/weak-password') {
+        throw new Error('Le mot de passe est trop faible');
+      } else {
+        throw new Error(error.message || 'Erreur lors de la création de l\'utilisateur');
+      }
     }
   };
 
@@ -255,20 +282,35 @@ const AdminPage: React.FC = () => {
 
   const renderUserManagement = () => (
     <div className="space-y-6">
+      {addUserSuccess && (
+        <div className="p-4 bg-green-100 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-lg">
+          <p className="text-green-800 dark:text-green-400 text-sm font-medium">{addUserSuccess}</p>
+        </div>
+      )}
+
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">Gestion des utilisateurs</h3>
               <p className="text-gray-600 dark:text-gray-400 mt-1">Gérez les comptes utilisateurs et leurs abonnements</p>
             </div>
-            <div className="relative">
-              <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Rechercher un utilisateur..."
-                className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-red-500"
-              />
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher un utilisateur..."
+                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                />
+              </div>
+              <button
+                onClick={() => setShowAddUserModal(true)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
+              >
+                <UserPlus className="h-5 w-5" />
+                <span>Ajouter un utilisateur</span>
+              </button>
             </div>
           </div>
         </div>
@@ -441,8 +483,15 @@ const AdminPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <>
+      <AddUserModal
+        isOpen={showAddUserModal}
+        onClose={() => setShowAddUserModal(false)}
+        onAddUser={handleAddUser}
+      />
+
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -483,8 +532,9 @@ const AdminPage: React.FC = () => {
         {activeTab === 'payments' && renderPaymentValidation()}
         {activeTab === 'users' && renderUserManagement()}
         {activeTab === 'alldebrid' && renderAlldebridMonitoring()}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

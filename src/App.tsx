@@ -9,6 +9,7 @@ import Footer from './components/Layout/Footer';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/Auth/LoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
+import ChangePasswordPage from './pages/Auth/ChangePasswordPage';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import PricingPage from './pages/PricingPage';
 import PaymentPage from './pages/Payment/PaymentPage';
@@ -31,6 +32,14 @@ function App() {
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
                     <Route path="/pricing" element={<PricingPage />} />
+                    <Route
+                      path="/change-password"
+                      element={
+                        <ProtectedRoute>
+                          <ChangePasswordPage />
+                        </ProtectedRoute>
+                      }
+                    />
                     <Route
                       path="/dashboard"
                       element={
