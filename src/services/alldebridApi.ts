@@ -185,6 +185,81 @@ class AlldebridService {
   async addTorrent(magnetLink: string): Promise<TorrentInfo> {
     try {
       const apiKey = this.decryptApiKey(this.config.apiKey);
+
+      // Vérifier si c'est un fichier .torrent encodé en base64
+      if (magnetLink.startsWith('file:')) {
+        const parts = magnetLink.split(':');
+        const filename = parts[1];
+        const base64Content = parts.slice(2).join(':');
+
+        console.log('Adding torrent file:', filename);
+
+        // Convertir base64 en blob
+        const binaryString = atob(base64Content);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: 'application/x-bittorrent' });
+
+        // Créer FormData pour l'upload
+        const formData = new FormData();
+        formData.append('files[]', blob, filename);
+
+        // Utiliser l'endpoint pour upload de fichiers
+        const response = await this.api.post('/magnet/upload/file',
+          formData,
+          {
+            params: {
+              apikey: apiKey
+            },
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          }
+        );
+
+        console.log('Torrent file upload response:', JSON.stringify(response.data, null, 2));
+
+        // Vérifier la structure de la réponse
+        if (!response.data) {
+          throw new Error('Pas de données dans la réponse API');
+        }
+
+        if (response.data.status === 'error' || response.data.error) {
+          const errorMsg = response.data.error?.message || response.data.error || 'Erreur API';
+          throw new Error(errorMsg);
+        }
+
+        // La structure peut être différente selon l'API
+        let torrentData;
+        if (response.data.data && response.data.data.files && response.data.data.files.length > 0) {
+          torrentData = response.data.data.files[0];
+        } else if (response.data.data && response.data.data.magnets && response.data.data.magnets.length > 0) {
+          torrentData = response.data.data.magnets[0];
+        } else if (response.data.data) {
+          torrentData = response.data.data;
+        } else {
+          console.error('Structure de réponse inattendue:', response.data);
+          throw new Error('Format de réponse API non reconnu. Vérifiez la documentation AllDebrid.');
+        }
+
+        if (torrentData.error) {
+          throw new Error(torrentData.error.message || 'Erreur lors de l\'ajout du fichier torrent');
+        }
+
+        return {
+          id: torrentData.id || Date.now().toString(),
+          filename: torrentData.filename || torrentData.name || filename,
+          size: torrentData.size || 0,
+          status: torrentData.status || 'queued',
+          progress: torrentData.downloaded && torrentData.size ? (torrentData.downloaded / torrentData.size * 100) : 0,
+          downloadSpeed: torrentData.downloadSpeed || 0,
+          links: torrentData.links || []
+        };
+      }
+
+      // Sinon, traiter comme un magnet link
       console.log('Adding torrent with magnet:', magnetLink);
 
       // Encoder le magnet link pour l'URL
@@ -197,17 +272,41 @@ class AlldebridService {
         }
       });
 
-      console.log('Torrent upload response:', response.data);
+      console.log('Torrent upload response:', JSON.stringify(response.data, null, 2));
 
-      if (!response.data.data || !response.data.data.magnets || response.data.data.magnets.length === 0) {
-        throw new Error('Réponse invalide de l\'API Alldebrid');
+      // Vérifier la structure de la réponse
+      if (!response.data) {
+        throw new Error('Pas de données dans la réponse API');
       }
 
-      const torrentData = response.data.data.magnets[0];
+      if (response.data.status === 'error' || response.data.error) {
+        const errorMsg = response.data.error?.message || response.data.error || 'Erreur API';
+        throw new Error(errorMsg);
+      }
+
+      // La structure peut être différente selon l'API
+      let torrentData;
+      if (response.data.data && response.data.data.magnets && response.data.data.magnets.length > 0) {
+        torrentData = response.data.data.magnets[0];
+      } else if (response.data.data && Array.isArray(response.data.data.magnets)) {
+        // Même si le tableau est vide, on peut avoir des infos dans data
+        if (response.data.data.magnets.length === 0 && response.data.data.id) {
+          torrentData = response.data.data;
+        } else if (response.data.data.magnets.length > 0) {
+          torrentData = response.data.data.magnets[0];
+        } else {
+          throw new Error('Aucun torrent retourné par l\'API');
+        }
+      } else if (response.data.data) {
+        torrentData = response.data.data;
+      } else {
+        console.error('Structure de réponse inattendue:', response.data);
+        throw new Error('Format de réponse API non reconnu. Vérifiez la documentation AllDebrid.');
+      }
 
       // Vérifier si le torrent a été ajouté avec succès
       if (torrentData.error) {
-        throw new Error(torrentData.error.message || 'Erreur lors de l\'ajout du torrent');
+        throw new Error(torrentData.error.message || torrentData.error || 'Erreur lors de l\'ajout du torrent');
       }
 
       return {

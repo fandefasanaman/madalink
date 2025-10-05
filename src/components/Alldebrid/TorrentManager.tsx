@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Download, Upload, Trash2, Play, Pause, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Download, Upload, Trash2, Play, Pause, RefreshCw, AlertCircle, CheckCircle, FileUp } from 'lucide-react';
 import { useAlldebrid } from '../../hooks/useAlldebrid';
 import { useLanguage } from '../../contexts/LanguageContext';
 
@@ -22,6 +22,10 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
   const [torrents, setTorrents] = useState<TorrentItem[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { addTorrent, quotaStatus, error, clearError } = useAlldebrid(apiKey);
   const { language } = useLanguage();
 
@@ -29,8 +33,15 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
     fr: {
       title: 'Gestionnaire de torrents',
       placeholder: 'Collez votre lien magnet ou hash torrent ici',
+      uploadFile: 'Uploader un fichier .torrent',
+      selectedFile: 'Fichier sélectionné',
       add: 'Ajouter torrent',
       adding: 'Ajout en cours...',
+      validating: 'Validation du torrent...',
+      sending: 'Envoi vers le serveur...',
+      analyzing: 'Analyse des fichiers...',
+      preparing: 'Préparation du téléchargement...',
+      finalizing: 'Finalisation...',
       noTorrents: 'Aucun torrent en cours',
       status: 'Statut',
       progress: 'Progression',
@@ -52,8 +63,15 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
     mg: {
       title: 'Mpitantana torrent',
       placeholder: 'Apetaho ny lien magnet na hash torrent eto',
+      uploadFile: 'Mampiditra rakitra .torrent',
+      selectedFile: 'Rakitra voafidy',
       add: 'Hanampy torrent',
       adding: 'Manampy...',
+      validating: 'Manamarina ny torrent...',
+      sending: 'Mandefa amin\'ny serveur...',
+      analyzing: 'Mamakafaka ny rakitra...',
+      preparing: 'Manomana ny fampidinana...',
+      finalizing: 'Mamita...',
       noTorrents: 'Tsy misy torrent mandeha',
       status: 'Toe-javatra',
       progress: 'Fivoarana',
@@ -115,8 +133,119 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
     return { valid: false, type: null, error: msg.invalidFormat };
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.name.endsWith('.torrent')) {
+      setSelectedFile(file);
+      setValidationError(null);
+    } else if (file) {
+      setValidationError('Format invalide. Veuillez sélectionner un fichier .torrent');
+      setSelectedFile(null);
+    }
+  };
+
+  const readTorrentFile = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result) {
+          const bytes = new Uint8Array(reader.result as ArrayBuffer);
+          const base64 = btoa(String.fromCharCode(...bytes));
+          resolve(base64);
+        } else {
+          reject(new Error('Impossible de lire le fichier'));
+        }
+      };
+      reader.onerror = () => reject(new Error('Erreur lors de la lecture du fichier'));
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  const simulateProgress = async (duration: number, statusMsg: string, startPercent: number, endPercent: number) => {
+    const steps = 10;
+    const stepDuration = duration / steps;
+    const progressIncrement = (endPercent - startPercent) / steps;
+
+    setUploadStatus(statusMsg);
+
+    for (let i = 0; i <= steps; i++) {
+      setUploadProgress(startPercent + (progressIncrement * i));
+      if (i < steps) {
+        await new Promise(resolve => setTimeout(resolve, stepDuration));
+      }
+    }
+  };
+
   const handleAddTorrent = async () => {
     const trimmedInput = magnetLink.trim();
+
+    // Si un fichier est sélectionné, utiliser celui-ci
+    if (selectedFile) {
+      clearError();
+      setValidationError(null);
+      setIsAdding(true);
+      setUploadProgress(0);
+
+      try {
+        // Étape 1: Validation (0-20%)
+        await simulateProgress(400, msg.validating, 0, 20);
+
+        // Étape 2: Lecture du fichier (20-40%)
+        setUploadStatus(msg.sending);
+        const base64Content = await readTorrentFile(selectedFile);
+        setUploadProgress(40);
+
+        console.log('Adding torrent file:', selectedFile.name);
+
+        // Étape 3: Analyse (40-70%)
+        await simulateProgress(600, msg.analyzing, 40, 70);
+
+        // Étape 4: Envoi à l'API (70-90%)
+        setUploadStatus(msg.preparing);
+        setUploadProgress(70);
+        const torrentInfo = await addTorrent(`file:${selectedFile.name}:${base64Content}`);
+        setUploadProgress(90);
+
+        // Étape 5: Finalisation (90-100%)
+        await simulateProgress(300, msg.finalizing, 90, 100);
+
+        setTorrents(prev => [...prev, torrentInfo]);
+        setSelectedFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+
+        if ((window as any).notifications) {
+          (window as any).notifications.addNotification({
+            type: 'success',
+            message: msg.success
+          });
+        }
+
+        // Réinitialiser après succès
+        setTimeout(() => {
+          setUploadProgress(0);
+          setUploadStatus('');
+        }, 1000);
+      } catch (err: any) {
+        console.error('Error adding torrent file:', err);
+        console.error('Error details:', {
+          message: err.message,
+          response: err.response?.data,
+          status: err.response?.status
+        });
+        const errorMsg = err.response?.data?.error?.message
+          || err.response?.data?.error
+          || err.message
+          || 'Erreur lors de l\'ajout du fichier torrent';
+        setValidationError(errorMsg);
+        setUploadProgress(0);
+        setUploadStatus('');
+      } finally {
+        setIsAdding(false);
+      }
+      return;
+    }
 
     if (!trimmedInput) {
       setValidationError(msg.emptyField);
@@ -133,19 +262,38 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
     clearError();
     setValidationError(null);
     setIsAdding(true);
+    setUploadProgress(0);
 
     try {
+      // Étape 1: Validation (0-20%)
+      await simulateProgress(300, msg.validating, 0, 20);
+
       // Convertir le hash en magnet si nécessaire
       let magnetToUse = trimmedInput;
       if (validation.type === 'hash') {
         magnetToUse = `magnet:?xt=urn:btih:${trimmedInput}`;
       }
 
+      // Étape 2: Envoi (20-50%)
+      await simulateProgress(400, msg.sending, 20, 50);
+
       console.log('Adding torrent:', magnetToUse);
+
+      // Étape 3: Analyse (50-80%)
+      setUploadStatus(msg.analyzing);
+      setUploadProgress(50);
       const torrentInfo = await addTorrent(magnetToUse);
+      setUploadProgress(80);
+
+      // Étape 4: Finalisation (80-100%)
+      await simulateProgress(300, msg.finalizing, 80, 100);
 
       setTorrents(prev => [...prev, torrentInfo]);
       setMagnetLink('');
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
 
       // Notification de succès
       if ((window as any).notifications) {
@@ -154,9 +302,26 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
           message: msg.success
         });
       }
+
+      // Réinitialiser après succès
+      setTimeout(() => {
+        setUploadProgress(0);
+        setUploadStatus('');
+      }, 1000);
     } catch (err: any) {
       console.error('Error adding torrent:', err);
-      setValidationError(err.message || 'Erreur lors de l\'ajout du torrent');
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      });
+      const errorMsg = err.response?.data?.error?.message
+        || err.response?.data?.error
+        || err.message
+        || 'Erreur lors de l\'ajout du torrent';
+      setValidationError(errorMsg);
+      setUploadProgress(0);
+      setUploadStatus('');
     } finally {
       setIsAdding(false);
     }
@@ -242,13 +407,49 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
             placeholder={msg.placeholder}
             rows={3}
             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors duration-200 resize-none"
+            disabled={isAdding || selectedFile !== null}
+          />
+        </div>
+
+        {/* Séparateur OU */}
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">OU</span>
+          </div>
+        </div>
+
+        {/* Upload de fichier */}
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".torrent"
+            onChange={handleFileChange}
+            className="hidden"
+            id="torrent-file-input"
             disabled={isAdding}
           />
+          <label
+            htmlFor="torrent-file-input"
+            className={`w-full flex items-center justify-center px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer transition-all duration-200 ${
+              selectedFile
+                ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                : 'border-gray-300 dark:border-gray-600 hover:border-purple-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+            } ${isAdding || magnetLink.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <FileUp className="h-5 w-5 mr-2 text-purple-600 dark:text-purple-400" />
+            <span className="text-gray-700 dark:text-gray-300">
+              {selectedFile ? `${msg.selectedFile}: ${selectedFile.name}` : msg.uploadFile}
+            </span>
+          </label>
         </div>
 
         <button
           onClick={handleAddTorrent}
-          disabled={!magnetLink.trim() || isAdding || (quotaStatus?.torrentsRemaining === 0)}
+          disabled={(!magnetLink.trim() && !selectedFile) || isAdding || (quotaStatus?.torrentsRemaining === 0)}
           className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200 flex items-center justify-center"
         >
           {isAdding ? (
@@ -263,6 +464,43 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
             </>
           )}
         </button>
+
+        {/* Barre de progression */}
+        {isAdding && uploadProgress > 0 && (
+          <div className="mt-4 space-y-2">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+              <div
+                className={`h-2.5 rounded-full transition-all duration-300 ${
+                  uploadProgress === 100
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500'
+                    : uploadProgress >= 70
+                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
+                    : uploadProgress >= 40
+                    ? 'bg-gradient-to-r from-orange-500 to-pink-500'
+                    : 'bg-gradient-to-r from-blue-500 to-purple-500'
+                }`}
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                {uploadProgress === 100 ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 animate-spin text-purple-500" />
+                )}
+                {uploadStatus}
+              </span>
+              <span className={`font-semibold ${
+                uploadProgress === 100
+                  ? 'text-green-500'
+                  : 'text-purple-600 dark:text-purple-400'
+              }`}>
+                {Math.round(uploadProgress)}%
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Affichage des erreurs */}
