@@ -187,10 +187,13 @@ class AlldebridService {
       const apiKey = this.decryptApiKey(this.config.apiKey);
       console.log('Adding torrent with magnet:', magnetLink);
 
-      const response = await this.api.post('/magnet/upload', null, {
+      // Encoder le magnet link pour l'URL
+      const encodedMagnet = encodeURIComponent(magnetLink);
+
+      const response = await this.api.get('/magnet/upload', {
         params: {
           apikey: apiKey,
-          magnets: [magnetLink]
+          magnets: encodedMagnet
         }
       });
 

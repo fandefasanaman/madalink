@@ -46,7 +46,8 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
       error: 'Erreur',
       emptyField: 'Veuillez entrer un lien magnet ou hash torrent',
       invalidFormat: 'Format invalide. Utilisez un lien magnet (magnet:?xt=urn:btih:...) ou un hash torrent (40 caractères)',
-      success: 'Torrent ajouté avec succès'
+      success: 'Torrent ajouté avec succès',
+      quotaReached: 'Quota journalier atteint. Upgradez votre plan pour plus de torrents.'
     },
     mg: {
       title: 'Mpitantana torrent',
@@ -68,11 +69,30 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
       error: 'Tsy mety',
       emptyField: 'Azafady apetaho ny lien magnet na hash',
       invalidFormat: 'Format tsy mety. Mampiasà lien magnet na hash torrent',
-      success: 'Torrent nampiana soa aman-tsara'
+      success: 'Torrent nampiana soa aman-tsara',
+      quotaReached: 'Tapa ny fetra anio. Miova plan mba hahazo torrent bebe kokoa.'
     }
   };
 
   const msg = messages[language as keyof typeof messages];
+
+  // Déboguer l'état du bouton
+  useEffect(() => {
+    const isEmpty = !magnetLink.trim();
+    const quotaExceeded = quotaStatus?.torrentsRemaining === 0;
+    console.log('=== TorrentManager Debug ===');
+    console.log('Magnet link:', magnetLink);
+    console.log('Magnet link length:', magnetLink.trim().length);
+    console.log('Is adding:', isAdding);
+    console.log('Quota status:', quotaStatus);
+    console.log('Conditions:', {
+      isEmpty,
+      isAdding,
+      quotaExceeded,
+      finalDisabled: isEmpty || isAdding || quotaExceeded
+    });
+    console.log('===========================');
+  }, [magnetLink, isAdding, quotaStatus]);
 
   const validateTorrentInput = (input: string): { valid: boolean; type: string | null; error?: string } => {
     const trimmed = input.trim();
@@ -228,7 +248,7 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
 
         <button
           onClick={handleAddTorrent}
-          disabled={!magnetLink.trim() || isAdding || (quotaStatus && quotaStatus.torrentsRemaining === 0)}
+          disabled={!magnetLink.trim() || isAdding || (quotaStatus?.torrentsRemaining === 0)}
           className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200 flex items-center justify-center"
         >
           {isAdding ? (
@@ -250,6 +270,14 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
         <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start">
           <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
           <span className="text-red-700 dark:text-red-400 text-sm">{error || validationError}</span>
+        </div>
+      )}
+
+      {/* Avertissement quota atteint */}
+      {quotaStatus && quotaStatus.torrentsRemaining === 0 && (
+        <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg flex items-start">
+          <AlertCircle className="h-5 w-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
+          <span className="text-yellow-700 dark:text-yellow-400 text-sm">{msg.quotaReached}</span>
         </div>
       )}
 

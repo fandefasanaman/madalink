@@ -48,8 +48,18 @@ export const useAlldebrid = (apiKey?: string): UseAlldebridReturn => {
   // Mettre à jour le statut des quotas
   useEffect(() => {
     if (user) {
-      const status = quotaMonitor.getQuotaStatus(user.id, user.plan);
+      const userPlan = user.plan || 'free';
+      const status = quotaMonitor.getQuotaStatus(user.id, userPlan);
+      console.log('Quota status updated:', status);
       setQuotaStatus(status);
+    } else {
+      // Si pas d'utilisateur, définir un quota par défaut
+      setQuotaStatus({
+        linksRemaining: 2,
+        torrentsRemaining: 1,
+        linksUsed: 0,
+        torrentsUsed: 0
+      });
     }
   }, [user, quotaMonitor]);
 
