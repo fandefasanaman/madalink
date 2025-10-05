@@ -48,12 +48,15 @@ export class FirebaseDownloadsService {
   // Ajouter un téléchargement
   static async addDownload(download: Omit<DownloadRecord, 'id' | 'createdAt'>): Promise<string> {
     try {
+      console.log('FirebaseDownloadsService: Adding download to Firebase:', download);
       const docRef = await addDoc(collection(db, 'downloads'), {
         ...download,
         createdAt: Timestamp.now()
       });
+      console.log('FirebaseDownloadsService: Download added with ID:', docRef.id);
       return docRef.id;
     } catch (error) {
+      console.error('FirebaseDownloadsService: Error adding download:', error);
       throw new Error('Erreur lors de l\'ajout du téléchargement');
     }
   }
@@ -79,6 +82,7 @@ export class FirebaseDownloadsService {
   // Récupérer l'historique des téléchargements
   static async getUserDownloads(userId: string, limitCount: number = 50): Promise<DownloadRecord[]> {
     try {
+      console.log('FirebaseDownloadsService: Fetching downloads for user:', userId, 'limit:', limitCount);
       const q = query(
         collection(db, 'downloads'),
         where('userId', '==', userId),
@@ -87,11 +91,15 @@ export class FirebaseDownloadsService {
       );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
+      console.log('FirebaseDownloadsService: Found', querySnapshot.size, 'documents');
+      const results = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       } as DownloadRecord));
+      console.log('FirebaseDownloadsService: Returning downloads:', results);
+      return results;
     } catch (error) {
+      console.error('FirebaseDownloadsService: Error fetching downloads:', error);
       throw new Error('Erreur lors de la récupération de l\'historique');
     }
   }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Download, CreditCard, History, BarChart3, Star, Link2, Upload, Settings } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAlldebridContext } from '../../contexts/AlldebridContext';
@@ -11,6 +11,7 @@ import AlldebridHistory from '../../components/Alldebrid/AlldebridHistory';
 import UserStats from '../../components/Alldebrid/UserStats';
 import AlldebridSettings from '../../components/Alldebrid/AlldebridSettings';
 import NotificationSystem, { useNotifications } from '../../components/Alldebrid/NotificationSystem';
+import { FirebaseDownloadsService, DownloadRecord } from '../../services/firebaseDownloads';
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -19,6 +20,9 @@ const DashboardPage: React.FC = () => {
   const [alldebridApiKey, setAlldebridApiKey] = React.useState('');
   const [downloadQueue] = React.useState(() => new DownloadQueue());
   const notifications = useNotifications();
+  const [recentDownloads, setRecentDownloads] = useState<DownloadRecord[]>([]);
+  const [todayDownloadsCount, setTodayDownloadsCount] = useState(0);
+  const [monthDownloadsCount, setMonthDownloadsCount] = useState(0);
 
   useEffect(() => {
     if (adminApiKey) {
@@ -29,6 +33,61 @@ const DashboardPage: React.FC = () => {
   }, [user, adminApiKey]);
 
   useEffect(() => {
+    const loadUserDownloads = async () => {
+      if (!user) return;
+
+      try {
+        const downloads = await FirebaseDownloadsService.getUserDownloads(user.id, 4);
+        setRecentDownloads(downloads);
+
+        const allDownloads = await FirebaseDownloadsService.getUserDownloads(user.id, 1000);
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const todayCount = allDownloads.filter(d =>
+          d.createdAt.toDate() >= today
+        ).length;
+
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const monthCount = allDownloads.filter(d =>
+          d.createdAt.toDate() >= firstDayOfMonth
+        ).length;
+
+        setTodayDownloadsCount(todayCount);
+        setMonthDownloadsCount(monthCount);
+      } catch (error) {
+        console.error('Erreur lors du chargement des téléchargements:', error);
+      }
+    };
+
+    loadUserDownloads();
+
+    if (user) {
+      const unsubscribe = FirebaseDownloadsService.onDownloadsChange(user.id, (downloads) => {
+        setRecentDownloads(downloads.slice(0, 4));
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const todayCount = downloads.filter(d =>
+          d.createdAt.toDate() >= today
+        ).length;
+
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const monthCount = downloads.filter(d =>
+          d.createdAt.toDate() >= firstDayOfMonth
+        ).length;
+
+        setTodayDownloadsCount(todayCount);
+        setMonthDownloadsCount(monthCount);
+      });
+
+      return () => unsubscribe();
+    }
+  }, [user]);
+
+  useEffect(() => {
     (window as any).downloadQueue = downloadQueue;
     (window as any).notifications = notifications;
 
@@ -37,6 +96,12 @@ const DashboardPage: React.FC = () => {
       delete (window as any).notifications;
     };
   }, [downloadQueue, notifications]);
+
+  useEffect(() => {
+    if (user?.id) {
+      downloadQueue.setUserId(user.id);
+    }
+  }, [user, downloadQueue]);
 
   const getPlanColor = (plan: string) => {
     switch (plan) {
@@ -56,10 +121,27 @@ const DashboardPage: React.FC = () => {
     }
   };
 
+  const getDailyLimit = (plan: string) => {
+    switch (plan) {
+      case 'bronze': return 50;
+      case 'silver': return null;
+      case 'gold': return null;
+      default: return 2;
+    }
+  };
+
+  const formatDownloadCount = () => {
+    const limit = getDailyLimit(user?.plan || 'free');
+    if (limit === null) {
+      return todayDownloadsCount.toString();
+    }
+    return `${todayDownloadsCount}/${limit}`;
+  };
+
   const stats = [
     {
       title: 'Téléchargements aujourd\'hui',
-      value: user?.plan === 'free' ? '1/2' : user?.plan === 'bronze' ? '12/50' : '47',
+      value: formatDownloadCount(),
       icon: Download,
       color: 'text-blue-500 bg-blue-100 dark:bg-blue-900/20'
     },
@@ -77,38 +159,55 @@ const DashboardPage: React.FC = () => {
     },
     {
       title: 'Fichiers ce mois',
-      value: user?.plan === 'free' ? '8' : user?.plan === 'bronze' ? '342' : '1,247',
+      value: monthDownloadsCount.toLocaleString('fr-FR'),
       icon: BarChart3,
       color: 'text-purple-500 bg-purple-100 dark:bg-purple-900/20'
     }
   ];
 
-  const recentDownloads = [
-    {
-      name: 'Document_Important.pdf',
-      size: '2.4 MB',
-      date: 'Il y a 2 heures',
-      status: 'Terminé'
-    },
-    {
-      name: 'Video_Tutorial.mp4',
-      size: '156 MB',
-      date: 'Il y a 5 heures',
-      status: 'Terminé'
-    },
-    {
-      name: 'Archive_Photos.zip',
-      size: '45 MB',
-      date: 'Hier',
-      status: 'Terminé'
-    },
-    {
-      name: 'Presentation.pptx',
-      size: '8.7 MB',
-      date: 'Il y a 2 jours',
-      status: 'Terminé'
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const formatRelativeTime = (timestamp: any): string => {
+    const date = timestamp.toDate();
+    const now = new Date();
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInMinutes = Math.floor(diffInMs / 60000);
+    const diffInHours = Math.floor(diffInMs / 3600000);
+    const diffInDays = Math.floor(diffInMs / 86400000);
+
+    if (diffInMinutes < 1) return 'À l\'instant';
+    if (diffInMinutes < 60) return `Il y a ${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''}`;
+    if (diffInHours < 24) return `Il y a ${diffInHours} heure${diffInHours > 1 ? 's' : ''}`;
+    if (diffInDays === 1) return 'Hier';
+    if (diffInDays < 7) return `Il y a ${diffInDays} jours`;
+    return date.toLocaleDateString('fr-FR');
+  };
+
+  const getStatusLabel = (status: string): string => {
+    switch (status) {
+      case 'completed': return 'Terminé';
+      case 'downloading': return 'En cours';
+      case 'pending': return 'En attente';
+      case 'error': return 'Erreur';
+      default: return status;
     }
-  ];
+  };
+
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'completed': return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400';
+      case 'downloading': return 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400';
+      case 'pending': return 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400';
+      case 'error': return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400';
+      default: return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-400';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -223,29 +322,36 @@ const DashboardPage: React.FC = () => {
               </div>
               
               <div className="space-y-3">
-                {recentDownloads.map((download, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                        <Download className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {download.name}
-                        </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          {download.size} • {download.date}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-xs bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400 px-2 py-1 rounded-full">
-                      {download.status}
-                    </span>
+                {recentDownloads.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <Download className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Aucun téléchargement récent</p>
                   </div>
-                ))}
+                ) : (
+                  recentDownloads.map((download) => (
+                    <div
+                      key={download.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                          <Download className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs">
+                            {download.filename}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {formatFileSize(download.fileSize)} • {formatRelativeTime(download.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${getStatusColor(download.status)}`}>
+                        {getStatusLabel(download.status)}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

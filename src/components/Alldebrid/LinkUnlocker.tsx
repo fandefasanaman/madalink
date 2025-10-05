@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link2, Download, Copy, AlertCircle, CheckCircle, Loader, ExternalLink } from 'lucide-react';
 import { useAlldebrid } from '../../hooks/useAlldebrid';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { FirebaseDownloadsService } from '../../services/firebaseDownloads';
 
 interface LinkUnlockerProps {
   apiKey?: string;
@@ -13,6 +15,7 @@ const LinkUnlocker: React.FC<LinkUnlockerProps> = ({ apiKey }) => {
   const [isUnlocking, setIsUnlocking] = useState(false);
   const { unlockLink, quotaStatus, error, clearError } = useAlldebrid(apiKey);
   const { t, language } = useLanguage();
+  const { user } = useAuth();
 
   const messages = {
     fr: {
@@ -68,12 +71,14 @@ const LinkUnlocker: React.FC<LinkUnlockerProps> = ({ apiKey }) => {
         setUnlockedLink(result.data);
 
         // Ajouter à la queue de téléchargement si disponible
+        // L'enregistrement Firebase est déjà fait dans useAlldebrid hook
         if (window.downloadQueue) {
           window.downloadQueue.addDownload(
             result.data.filename,
             result.data.link,
             inputUrl.trim(),
-            result.data.filesize
+            result.data.filesize,
+            result.data.host
           );
         }
 

@@ -20,11 +20,16 @@ const AlldebridHistory: React.FC<AlldebridHistoryProps> = () => {
   
 
   const loadHistory = async () => {
-    if (!user) return;
-    
+    if (!user) {
+      console.log('AlldebridHistory: No user, cannot load history');
+      return;
+    }
+
+    console.log('AlldebridHistory: Loading history for user:', user.id);
     setIsLoading(true);
     try {
       const downloads = await FirebaseDownloadsService.getUserDownloads(user.id);
+      console.log('AlldebridHistory: Downloaded records:', downloads.length, downloads);
       setHistory(downloads);
       setFilteredHistory(downloads);
     } catch (err) {
@@ -135,13 +140,35 @@ const AlldebridHistory: React.FC<AlldebridHistoryProps> = () => {
           </div>
         </div>
         
-        <button
-          onClick={loadHistory}
-          disabled={isLoading || !user}
-          className="p-2 text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200"
-        >
-          <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={async () => {
+              if (!user) return;
+              console.log('=== TEST DEBUG ===');
+              console.log('User ID:', user.id);
+              console.log('User:', user);
+              try {
+                const downloads = await FirebaseDownloadsService.getUserDownloads(user.id, 100);
+                console.log('Test fetch result:', downloads);
+                alert(`Trouvé ${downloads.length} téléchargements dans Firebase`);
+              } catch (error) {
+                console.error('Test fetch error:', error);
+                alert('Erreur: ' + error);
+              }
+            }}
+            disabled={!user}
+            className="px-3 py-2 text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/30"
+          >
+            Test Firebase
+          </button>
+          <button
+            onClick={loadHistory}
+            disabled={isLoading || !user}
+            className="p-2 text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200"
+          >
+            <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Filtres et recherche */}
