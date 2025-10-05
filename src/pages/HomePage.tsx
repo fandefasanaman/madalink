@@ -53,7 +53,7 @@ const HomePage: React.FC = () => {
       name: 'Essai 15 jours',
       price: '3 500',
       period: '15 jours',
-      features: ['Accès complet 15 jours', 'Vitesse 1 MB/s', '10 téléchargements/jour'],
+      features: ['Accès complet 15 jours', 'Vitesse 2 MB/s', '10 téléchargements/jour'],
       color: 'border-gray-300',
       popular: false
     },

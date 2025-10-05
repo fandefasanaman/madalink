@@ -19,12 +19,12 @@ export const useFirebaseData = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [vendorInfo, setVendorInfo] = useState<VendorInfo>({
-    name: 'Kéfir Madagascar SARL',
-    address: 'Lot II M 15 Bis Antanimena, 101 Antananarivo, Madagascar',
-    phone: '+261 32 12 345 67',
-    email: 'contact@kefir-madagascar.mg',
-    nif: '1234567890123',
-    stat: '12345 12 2023 0 12345'
+    name: '',
+    address: '',
+    phone: '',
+    email: '',
+    nif: '',
+    stat: ''
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

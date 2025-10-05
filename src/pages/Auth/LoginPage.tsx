@@ -139,15 +139,6 @@ const LoginPage: React.FC = () => {
             </button>
           </form>
 
-          {/* Demo credentials */}
-          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-            <h4 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">Comptes de démonstration:</h4>
-            <div className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
-              <div>👤 Utilisateur: user@madalink.mg / password</div>
-              <div>👨‍💼 Admin: admin@madalink.mg / password</div>
-            </div>
-          </div>
-
           {/* Sign up link */}
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">

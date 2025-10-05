@@ -11,7 +11,7 @@ const PricingPage: React.FC = () => {
       description: 'Parfait pour découvrir',
       features: [
         'Accès complet pendant 15 jours',
-        'Vitesse limitée à 1 MB/s',
+        'Vitesse limitée à 2 MB/s',
         '10 téléchargements par jour',
         'Support communautaire',
         'Formats basiques supportés'
