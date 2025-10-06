@@ -136,25 +136,11 @@ class AlldebridService {
   }
 
   async unlockLink(originalUrl: string, isTorrentLink: boolean = false): Promise<UnlockResponse> {
-    // Si c'est un lien de torrent, on le traite différemment
-    if (isTorrentLink) {
-      // Les liens de torrents AllDebrid sont déjà des liens directs
-      // Ils commencent généralement par https://
-      if (originalUrl.startsWith('http://') || originalUrl.startsWith('https://')) {
-        return {
-          success: true,
-          data: {
-            link: originalUrl,
-            host: 'alldebrid',
-            filename: 'download',
-            filesize: 0
-          }
-        };
-      }
-      // Si c'est un ID, on doit le convertir
+    // Validation du paramètre
+    if (!originalUrl || typeof originalUrl !== 'string') {
       return {
         success: false,
-        error: 'Format de lien torrent non supporté'
+        error: 'URL invalide ou manquante'
       };
     }
 
@@ -171,7 +157,7 @@ class AlldebridService {
 
     try {
       const apiKey = this.decryptApiKey(this.config.apiKey);
-      console.log('Attempting to unlock:', originalUrl);
+      console.log('Attempting to unlock:', originalUrl, 'isTorrentLink:', isTorrentLink);
 
       const response = await this.api.get('/link/unlock', {
         params: {

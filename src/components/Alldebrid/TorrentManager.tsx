@@ -404,6 +404,19 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
   };
 
   const handleDownloadLink = async (alldebridLink: string, index: number) => {
+    console.log('handleDownloadLink called with:', { alldebridLink, type: typeof alldebridLink, index });
+
+    if (!alldebridLink || typeof alldebridLink !== 'string') {
+      console.error('Invalid link:', alldebridLink);
+      if ((window as any).notifications) {
+        (window as any).notifications.addNotification({
+          type: 'error',
+          message: 'Lien invalide'
+        });
+      }
+      return;
+    }
+
     const linkKey = `${alldebridLink}_${index}`;
 
     if (downloadingLinks.has(linkKey)) {
@@ -800,7 +813,11 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
               </div>
 
               {/* Liens de téléchargement */}
-              {torrent.status.toLowerCase() === 'ready' && torrent.links && torrent.links.length > 0 && (
+              {torrent.status.toLowerCase() === 'ready' && torrent.links && torrent.links.length > 0 && (() => {
+                console.log('Torrent links structure:', torrent.links);
+                console.log('First link:', torrent.links[0]);
+                return true;
+              })() && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-gray-900 dark:text-white">
@@ -813,14 +830,16 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {torrent.links.slice(0, 4).map((link, index) => {
-                      const linkKey = `${link}_${index}`;
+                      // Gérer les deux formats: string ou object avec propriété 'link'
+                      const linkUrl = typeof link === 'string' ? link : (link as any)?.link || '';
+                      const linkKey = `${linkUrl}_${index}`;
                       const isDownloading = downloadingLinks.has(linkKey);
 
                       return (
                         <button
                           key={index}
-                          onClick={() => handleDownloadLink(link, index)}
-                          disabled={isDownloading}
+                          onClick={() => handleDownloadLink(linkUrl, index)}
+                          disabled={isDownloading || !linkUrl}
                           className="flex items-center justify-center py-2 px-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isDownloading ? (
