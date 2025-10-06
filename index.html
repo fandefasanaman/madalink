@@ -5,6 +5,27 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MadaLink Premium Download Platform</title>
+    <script>
+      (function() {
+        try {
+          const savedTheme = localStorage.getItem('madalink_theme');
+          const validThemes = ['light', 'dark', 'system'];
+          const theme = savedTheme && validThemes.includes(savedTheme) ? savedTheme : 'system';
+
+          const getSystemTheme = function() {
+            return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          };
+
+          const effectiveTheme = theme === 'system' ? getSystemTheme() : theme;
+
+          if (effectiveTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {
+          console.error('Theme initialization error:', e);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
