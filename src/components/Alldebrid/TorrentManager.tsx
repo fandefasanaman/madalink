@@ -25,9 +25,21 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [localApiKey, setLocalApiKey] = useState(apiKey || '');
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { addTorrent, quotaStatus, error, clearError } = useAlldebrid(apiKey);
+  const { addTorrent, getAllTorrentsStatus, quotaStatus, error, clearError } = useAlldebrid(localApiKey || apiKey);
   const { language } = useLanguage();
+
+  useEffect(() => {
+    if (apiKey) {
+      setLocalApiKey(apiKey);
+      setShowApiKeyInput(false);
+    } else {
+      setShowApiKeyInput(true);
+    }
+  }, [apiKey]);
 
   const messages = {
     fr: {
@@ -58,7 +70,11 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
       emptyField: 'Veuillez entrer un lien magnet ou hash torrent',
       invalidFormat: 'Format invalide. Utilisez un lien magnet (magnet:?xt=urn:btih:...) ou un hash torrent (40 caractères)',
       success: 'Torrent ajouté avec succès',
-      quotaReached: 'Quota journalier atteint. Upgradez votre plan pour plus de torrents.'
+      quotaReached: 'Quota journalier atteint. Upgradez votre plan pour plus de torrents.',
+      refreshStatus: 'Actualiser le statut',
+      refreshing: 'Actualisation...',
+      ready: 'Prêt',
+      readyToDownload: 'Votre fichier est prêt \u00e0 \u00eatre téléchargé !'
     },
     mg: {
       title: 'Mpitantana torrent',
@@ -86,9 +102,13 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
       waiting: 'Miandry',
       error: 'Tsy mety',
       emptyField: 'Azafady apetaho ny lien magnet na hash',
-      invalidFormat: 'Format tsy mety. Mampiasà lien magnet na hash torrent',
+      invalidFormat: 'Format tsy mety. Mampiasa lien magnet na hash torrent',
       success: 'Torrent nampiana soa aman-tsara',
-      quotaReached: 'Tapa ny fetra anio. Miova plan mba hahazo torrent bebe kokoa.'
+      quotaReached: 'Tapa ny fetra anio. Miova plan mba hahazo torrent bebe kokoa.',
+      refreshStatus: 'Mamerina ny toe-javatra',
+      refreshing: 'Mamerina...',
+      ready: 'Vonona',
+      readyToDownload: 'Vonona alaina ny rakitra !'
     }
   };
 
@@ -348,6 +368,7 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
         return 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20';
       case 'waiting':
       case 'queued':
+      case 'processing':
         return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/20';
       case 'error':
         return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/20';
@@ -359,12 +380,14 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
   const getStatusText = (status: string): string => {
     switch (status.toLowerCase()) {
       case 'completed':
-      case 'ready':
         return msg.completed;
+      case 'ready':
+        return msg.ready;
       case 'downloading':
         return msg.downloading;
       case 'waiting':
       case 'queued':
+      case 'processing':
         return msg.waiting;
       case 'error':
         return msg.error;
@@ -377,25 +400,163 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
     setTorrents(prev => prev.filter(t => t.id !== torrentId));
   };
 
+  const handleManualRefresh = async () => {
+    if (isRefreshing || !getAllTorrentsStatus) return;
+
+    setIsRefreshing(true);
+    try {
+      const allTorrents = await getAllTorrentsStatus();
+
+      setTorrents(prevTorrents => {
+        return prevTorrents.map(localTorrent => {
+          const remoteTorrent = allTorrents.find(t => t.id === localTorrent.id);
+          if (remoteTorrent) {
+            const isNowReady = remoteTorrent.status.toLowerCase() === 'ready' && localTorrent.status.toLowerCase() !== 'ready';
+
+            if (isNowReady && (window as any).notifications) {
+              (window as any).notifications.addNotification({
+                type: 'success',
+                message: `${remoteTorrent.filename} est prêt à télécharger !`
+              });
+            }
+
+            return remoteTorrent;
+          }
+          return localTorrent;
+        });
+      });
+    } catch (err) {
+      console.error('Error refreshing torrents status:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!getAllTorrentsStatus) return;
+
+    const loadInitialTorrents = async () => {
+      try {
+        const allTorrents = await getAllTorrentsStatus();
+        if (allTorrents.length > 0) {
+          setTorrents(allTorrents);
+        }
+      } catch (err) {
+        console.error('Error loading initial torrents:', err);
+      }
+    };
+
+    loadInitialTorrents();
+  }, [getAllTorrentsStatus]);
+
+  useEffect(() => {
+    if (torrents.length === 0 || !getAllTorrentsStatus) return;
+
+    const hasPendingTorrents = torrents.some(
+      t => {
+        const status = t.status.toLowerCase();
+        return status === 'waiting' || status === 'queued' || status === 'downloading' || status === 'processing';
+      }
+    );
+
+    if (!hasPendingTorrents) return;
+
+    const interval = setInterval(async () => {
+      if (isRefreshing) return;
+
+      try {
+        const allTorrents = await getAllTorrentsStatus();
+
+        setTorrents(prevTorrents => {
+          return prevTorrents.map(localTorrent => {
+            const remoteTorrent = allTorrents.find(t => t.id === localTorrent.id);
+            if (remoteTorrent) {
+              const isNowReady = remoteTorrent.status.toLowerCase() === 'ready' && localTorrent.status.toLowerCase() !== 'ready';
+
+              if (isNowReady && (window as any).notifications) {
+                (window as any).notifications.addNotification({
+                  type: 'success',
+                  message: `${remoteTorrent.filename} est prêt à télécharger !`
+                });
+              }
+
+              return remoteTorrent;
+            }
+            return localTorrent;
+          });
+        });
+      } catch (err) {
+        console.error('Error auto-refreshing torrents:', err);
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [torrents, getAllTorrentsStatus, isRefreshing]);
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-      <div className="flex items-center mb-6">
-        <div className="p-3 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg mr-4">
-          <Download className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+      {showApiKeyInput && !localApiKey && (
+        <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+          <div className="flex items-start">
+            <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mr-3 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-2">
+                Configuration requise
+              </h3>
+              <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-3">
+                Veuillez entrer votre clé API Alldebrid pour utiliser le gestionnaire de torrents.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={localApiKey}
+                  onChange={(e) => setLocalApiKey(e.target.value)}
+                  placeholder="Votre clé API Alldebrid"
+                  className="flex-1 px-3 py-2 border border-yellow-300 dark:border-yellow-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                />
+                <button
+                  onClick={() => setShowApiKeyInput(false)}
+                  disabled={!localApiKey}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Valider
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-            {msg.title}
-          </h2>
-          {quotaStatus && (
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {msg.quotaRemaining}: {' '}
-              <span className="font-medium text-purple-600 dark:text-purple-400">
-                {quotaStatus.torrentsRemaining === -1 ? msg.unlimited : quotaStatus.torrentsRemaining}
-              </span>
-            </p>
-          )}
+      )}
+
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center">
+          <div className="p-3 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg mr-4">
+            <Download className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              {msg.title}
+            </h2>
+            {quotaStatus && (
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {msg.quotaRemaining}: {' '}
+                <span className="font-medium text-purple-600 dark:text-purple-400">
+                  {quotaStatus.torrentsRemaining === -1 ? msg.unlimited : quotaStatus.torrentsRemaining}
+                </span>
+              </p>
+            )}
+          </div>
         </div>
+        {torrents.length > 0 && (
+          <button
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="flex items-center px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            title={msg.refreshStatus}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? msg.refreshing : msg.refreshStatus}
+          </button>
+        )}
       </div>
 
       {/* Formulaire d'ajout */}
@@ -571,11 +732,17 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
               </div>
 
               {/* Liens de téléchargement */}
-              {torrent.links && torrent.links.length > 0 && (
+              {torrent.status.toLowerCase() === 'ready' && torrent.links && torrent.links.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {msg.files} ({torrent.links.length})
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {msg.files} ({torrent.links.length})
+                    </p>
+                    <span className="flex items-center text-xs text-green-600 dark:text-green-400 font-medium">
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      {msg.ready}
+                    </span>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {torrent.links.slice(0, 4).map((link, index) => (
                       <a
@@ -583,7 +750,7 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
                         href={link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-center py-2 px-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200"
+                        className="flex items-center justify-center py-2 px-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg"
                       >
                         <Download className="h-4 w-4 mr-2" />
                         {msg.download} {index + 1}

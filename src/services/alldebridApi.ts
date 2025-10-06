@@ -327,9 +327,16 @@ class AlldebridService {
 
   async getTorrentStatus(torrentId: string): Promise<TorrentInfo> {
     try {
-      const response = await this.api.get(`/magnet/status?id=${torrentId}`);
+      const apiKey = this.decryptApiKey(this.config.apiKey);
+      const response = await this.api.get('/magnet/status', {
+        params: {
+          apikey: apiKey,
+          id: torrentId
+        }
+      });
+
       const torrentData = response.data.data.magnets;
-      
+
       return {
         id: torrentData.id,
         filename: torrentData.filename,
@@ -340,16 +347,50 @@ class AlldebridService {
         links: torrentData.links || []
       };
     } catch (error: any) {
+      console.error('Error getting torrent status:', error);
       throw new Error('Erreur lors de la vérification du statut du torrent');
     }
   }
 
   async getUserLinks(page: number = 1): Promise<any[]> {
     try {
-      const response = await this.api.get(`/user/links?page=${page}`);
-      return response.data.data.links;
+      const apiKey = this.decryptApiKey(this.config.apiKey);
+      const response = await this.api.get('/user/links', {
+        params: {
+          apikey: apiKey,
+          page
+        }
+      });
+      return response.data.data.links || [];
     } catch (error: any) {
+      console.error('Error getting user links:', error);
       throw new Error('Erreur lors de la récupération de l\'historique');
+    }
+  }
+
+  async getAllTorrentsStatus(): Promise<TorrentInfo[]> {
+    try {
+      const apiKey = this.decryptApiKey(this.config.apiKey);
+      const response = await this.api.get('/magnet/status', {
+        params: {
+          apikey: apiKey
+        }
+      });
+
+      const torrentsData = response.data.data.magnets || [];
+
+      return torrentsData.map((torrent: any) => ({
+        id: torrent.id,
+        filename: torrent.filename,
+        size: torrent.size,
+        status: torrent.status,
+        progress: torrent.downloaded && torrent.size ? (torrent.downloaded / torrent.size * 100) : 0,
+        downloadSpeed: torrent.downloadSpeed || 0,
+        links: torrent.links || []
+      }));
+    } catch (error: any) {
+      console.error('Error getting all torrents status:', error);
+      return [];
     }
   }
 

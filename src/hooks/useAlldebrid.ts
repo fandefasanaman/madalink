@@ -13,6 +13,8 @@ interface UseAlldebridReturn {
   quotaStatus: any;
   unlockLink: (url: string) => Promise<UnlockResponse>;
   addTorrent: (magnetLink: string) => Promise<TorrentInfo>;
+  getTorrentStatus: (torrentId: string) => Promise<TorrentInfo>;
+  getAllTorrentsStatus: () => Promise<TorrentInfo[]>;
   getUserLinks: () => Promise<any[]>;
   refreshUserInfo: () => Promise<void>;
   clearError: () => void;
@@ -248,6 +250,33 @@ export const useAlldebrid = (apiKey?: string): UseAlldebridReturn => {
     }
   }, [alldebridService]);
 
+  const getTorrentStatus = useCallback(async (torrentId: string): Promise<TorrentInfo> => {
+    if (!alldebridService) {
+      throw new Error('Service non initialisé');
+    }
+
+    try {
+      return await alldebridService.getTorrentStatus(torrentId);
+    } catch (err: any) {
+      const errorMessage = err.message || 'Erreur lors de la vérification du statut';
+      console.error('Error in getTorrentStatus:', errorMessage);
+      throw new Error(errorMessage);
+    }
+  }, [alldebridService]);
+
+  const getAllTorrentsStatus = useCallback(async (): Promise<TorrentInfo[]> => {
+    if (!alldebridService) {
+      return [];
+    }
+
+    try {
+      return await alldebridService.getAllTorrentsStatus();
+    } catch (err: any) {
+      console.error('Error in getAllTorrentsStatus:', err.message);
+      return [];
+    }
+  }, [alldebridService]);
+
   const clearError = useCallback(() => {
     setError(null);
   }, []);
@@ -266,6 +295,8 @@ export const useAlldebrid = (apiKey?: string): UseAlldebridReturn => {
     quotaStatus,
     unlockLink,
     addTorrent,
+    getTorrentStatus,
+    getAllTorrentsStatus,
     getUserLinks,
     refreshUserInfo,
     clearError
