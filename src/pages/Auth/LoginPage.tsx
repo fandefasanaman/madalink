@@ -27,16 +27,25 @@ const LoginPage: React.FC = () => {
     try {
       const userProfile = await login(email, password);
 
-      if (userProfile?.passwordResetRequired) {
-        setUserId(userProfile.id);
-        setShowPasswordChange(true);
-        setIsLoading(false);
+      if (userProfile?.passwordMustChange || userProfile?.passwordResetRequired) {
+        navigate('/change-password');
         return;
       }
 
       navigate('/dashboard');
-    } catch (err) {
-      setError('Email ou mot de passe incorrect');
+    } catch (err: any) {
+      console.error('Erreur de connexion:', err);
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+        setError('Email ou mot de passe incorrect');
+      } else if (err.code === 'auth/invalid-email') {
+        setError('Adresse email invalide');
+      } else if (err.code === 'auth/user-disabled') {
+        setError('Ce compte a été désactivé');
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('Trop de tentatives. Veuillez réessayer plus tard');
+      } else {
+        setError(err.message || 'Email ou mot de passe incorrect');
+      }
     } finally {
       setIsLoading(false);
     }

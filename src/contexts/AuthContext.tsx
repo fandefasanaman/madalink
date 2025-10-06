@@ -57,10 +57,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string): Promise<UserProfile> => {
     setLoading(true);
     try {
+      console.log('Tentative de connexion pour:', email);
       const userProfile = await FirebaseAuthService.login(email, password);
+      console.log('Connexion réussie, profil:', userProfile);
       setUser(userProfile);
       return userProfile;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Erreur de connexion dans AuthContext:', error);
       throw error;
     } finally {
       setLoading(false);
@@ -87,8 +90,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const updateProfile = async (updates: Partial<UserProfile>): Promise<void> => {
     if (user) {
-      await FirebaseAuthService.updateUserProfile(user.id, updates);
-      setUser({ ...user, ...updates });
+      if (updates.id === undefined) {
+        await FirebaseAuthService.updateUserProfile(user.id, updates);
+        setUser({ ...user, ...updates });
+      } else {
+        setUser({ ...user, ...updates });
+      }
     }
   };
 

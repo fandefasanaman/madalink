@@ -155,9 +155,11 @@ const AdminPage: React.FC = () => {
 
       if (newPassword) {
         await FirebaseAuthService.updateUserPassword(userId, newPassword);
+        setAddUserSuccess('Utilisateur modifié avec succès. Un email de réinitialisation de mot de passe a été envoyé.');
+      } else {
+        setAddUserSuccess('Utilisateur modifié avec succès');
       }
 
-      setAddUserSuccess('Utilisateur modifié avec succès');
       setTimeout(() => setAddUserSuccess(null), 5000);
 
       const users = await FirebaseAuthService.getAllUsers();

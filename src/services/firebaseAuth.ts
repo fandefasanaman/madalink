@@ -8,16 +8,17 @@ import {
   updatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
-  getAuth
+  getAuth,
+  sendPasswordResetEmail
 } from 'firebase/auth';
-import CryptoJS from 'crypto-js';
 import {
   doc,
   getDoc,
   setDoc,
   updateDoc,
   serverTimestamp,
-  increment
+  increment,
+  deleteField
 } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 
@@ -34,7 +35,6 @@ export interface UserProfile {
   updatedAt: Date;
   passwordMustChange?: boolean;
   passwordResetRequired?: boolean;
-  tempPasswordHash?: string;
   status?: 'active' | 'pending' | 'suspended';
 }
 
@@ -69,11 +69,19 @@ export class FirebaseAuthService {
   }
 
   static async login(email: string, password: string): Promise<UserProfile> {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+    console.log('FirebaseAuthService.login appelé pour:', email);
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      console.log('Firebase Auth connexion réussie, UID:', user.uid);
 
-    const userProfile = await this.getUserProfile(user.uid);
-    return userProfile;
+      const userProfile = await this.getUserProfile(user.uid);
+      console.log('Profil utilisateur récupéré:', userProfile);
+      return userProfile;
+    } catch (error: any) {
+      console.error('Erreur Firebase Auth:', error.code, error.message);
+      throw error;
+    }
   }
 
   static async logout(): Promise<void> {
@@ -115,8 +123,7 @@ export class FirebaseAuthService {
       createdAt: convertToDate(data.createdAt),
       updatedAt: convertToDate(data.updatedAt),
       passwordMustChange: data.passwordMustChange,
-      passwordResetRequired: data.passwordResetRequired,
-      tempPasswordHash: data.tempPasswordHash
+      passwordResetRequired: data.passwordResetRequired
     };
   }
 
@@ -199,9 +206,22 @@ export class FirebaseAuthService {
       throw new Error('Utilisateur non connecté');
     }
 
-    const credential = EmailAuthProvider.credential(user.email, currentPassword);
-    await reauthenticateWithCredential(user, credential);
-    await updatePassword(user, newPassword);
+    console.log('Changement de mot de passe pour:', user.email);
+    console.log('UID:', user.uid);
+
+    try {
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+      console.log('Réauthentification...');
+      await reauthenticateWithCredential(user, credential);
+      console.log('Réauthentification réussie');
+
+      console.log('Mise à jour du mot de passe...');
+      await updatePassword(user, newPassword);
+      console.log('Mot de passe mis à jour avec succès dans Firebase Auth');
+    } catch (error: any) {
+      console.error('Erreur lors du changement de mot de passe:', error.code, error.message);
+      throw error;
+    }
   }
 
   static async getAllUsers(): Promise<UserProfile[]> {
@@ -262,50 +282,29 @@ export class FirebaseAuthService {
   }
 
   static async updateUserPassword(userId: string, newPassword: string): Promise<void> {
-    const hashedPassword = CryptoJS.SHA256(newPassword).toString();
+    console.log('updateUserPassword appelé pour userId:', userId);
+
+    const userDoc = await getDoc(doc(db, USERS_COLLECTION, userId));
+    if (!userDoc.exists()) {
+      throw new Error('Utilisateur introuvable');
+    }
+
+    const userData = userDoc.data();
+    const userEmail = userData.email;
+
+    console.log('Envoi email de réinitialisation à:', userEmail);
+
+    await sendPasswordResetEmail(auth, userEmail);
 
     await updateDoc(doc(db, USERS_COLLECTION, userId), {
-      tempPasswordHash: hashedPassword,
       passwordMustChange: true,
       passwordResetRequired: true,
       updatedAt: serverTimestamp()
     });
+
+    console.log('Email de réinitialisation envoyé avec succès');
   }
 
-  static async applyTempPassword(userId: string, tempPassword: string): Promise<boolean> {
-    const userDoc = await getDoc(doc(db, USERS_COLLECTION, userId));
-
-    if (!userDoc.exists()) {
-      return false;
-    }
-
-    const data = userDoc.data();
-    const storedHash = data.tempPasswordHash;
-
-    if (!storedHash) {
-      return false;
-    }
-
-    const inputHash = CryptoJS.SHA256(tempPassword).toString();
-
-    if (inputHash === storedHash) {
-      const currentUser = getAuth().currentUser;
-      if (currentUser && currentUser.uid === userId) {
-        await updatePassword(currentUser, tempPassword);
-
-        await updateDoc(doc(db, USERS_COLLECTION, userId), {
-          tempPasswordHash: null,
-          passwordMustChange: false,
-          passwordResetRequired: false,
-          updatedAt: serverTimestamp()
-        });
-
-        return true;
-      }
-    }
-
-    return false;
-  }
 
   static async checkUserExists(email: string): Promise<boolean> {
     const { collection, getDocs, query, where } = await import('firebase/firestore');
@@ -317,6 +316,10 @@ export class FirebaseAuthService {
 
     const snapshot = await getDocs(usersQuery);
     return !snapshot.empty;
+  }
+
+  static async sendPasswordResetEmail(email: string): Promise<void> {
+    await sendPasswordResetEmail(auth, email);
   }
 
   static async getUserByEmail(email: string): Promise<UserProfile | null> {

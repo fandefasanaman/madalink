@@ -6,7 +6,7 @@ import { FirebaseAuthService } from '../../services/firebaseAuth';
 import Logo from '../../components/Logo';
 
 const ChangePasswordPage: React.FC = () => {
-  const { user, firebaseUser, logout } = useAuth();
+  const { user, firebaseUser, logout, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -60,11 +60,22 @@ const ChangePasswordPage: React.FC = () => {
 
     setLoading(true);
     try {
+      console.log('Début du changement de mot de passe');
       await FirebaseAuthService.changePassword(currentPassword, newPassword);
+      console.log('Changement de mot de passe réussi');
 
+      console.log('Mise à jour du profil Firestore');
       await FirebaseAuthService.updateUserProfile(user.id, {
-        passwordMustChange: false
+        passwordMustChange: false,
+        passwordResetRequired: false
       });
+
+      console.log('Récupération du profil mis à jour');
+      const updatedProfile = await FirebaseAuthService.getUserProfile(user.id);
+      await updateProfile(updatedProfile);
+
+      console.log('Profil mis à jour dans le contexte, redirection vers dashboard');
+      console.log('IMPORTANT: Vous restez connecté, ne vous déconnectez pas manuellement');
 
       navigate('/dashboard');
     } catch (err: any) {
