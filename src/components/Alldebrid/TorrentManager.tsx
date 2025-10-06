@@ -28,8 +28,9 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [localApiKey, setLocalApiKey] = useState(apiKey || '');
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const [downloadingLinks, setDownloadingLinks] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { addTorrent, getAllTorrentsStatus, quotaStatus, error, clearError } = useAlldebrid(localApiKey || apiKey);
+  const { addTorrent, getAllTorrentsStatus, unlockLink, quotaStatus, error, clearError } = useAlldebrid(localApiKey || apiKey);
   const { language } = useLanguage();
 
   useEffect(() => {
@@ -231,6 +232,7 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
 
         setTorrents(prev => [...prev, torrentInfo]);
         setSelectedFile(null);
+        setValidationError(null);
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
@@ -311,6 +313,7 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
       setTorrents(prev => [...prev, torrentInfo]);
       setMagnetLink('');
       setSelectedFile(null);
+      setValidationError(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -398,6 +401,71 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
 
   const removeTorrent = (torrentId: string) => {
     setTorrents(prev => prev.filter(t => t.id !== torrentId));
+  };
+
+  const handleDownloadLink = async (alldebridLink: string, index: number) => {
+    const linkKey = `${alldebridLink}_${index}`;
+
+    if (downloadingLinks.has(linkKey)) {
+      return;
+    }
+
+    // Effacer les erreurs avant de commencer
+    clearError();
+
+    setDownloadingLinks(prev => new Set(prev).add(linkKey));
+
+    try {
+      console.log('Unlocking link:', alldebridLink);
+
+      if (!unlockLink) {
+        throw new Error('Service de déverrouillage non disponible');
+      }
+
+      const result = await unlockLink(alldebridLink, true);
+
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Impossible de déverrouiller le lien');
+      }
+
+      console.log('Direct download link:', result.data.link);
+
+      // Créer un lien temporaire et déclencher le téléchargement
+      const downloadLink = document.createElement('a');
+      downloadLink.href = result.data.link;
+      downloadLink.download = result.data.filename || 'download';
+      downloadLink.target = '_blank';
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+
+      // Effacer les erreurs après succès
+      clearError();
+
+      if ((window as any).notifications) {
+        (window as any).notifications.addNotification({
+          type: 'success',
+          message: `Téléchargement de ${result.data.filename} démarré`
+        });
+      }
+    } catch (err: any) {
+      console.error('Error downloading link:', err);
+      const errorMsg = err.message || 'Erreur lors du téléchargement';
+
+      // Ne pas propager l'erreur au bandeau principal, utiliser uniquement les notifications
+      if ((window as any).notifications) {
+        (window as any).notifications.addNotification({
+          type: 'error',
+          message: errorMsg
+        });
+      }
+    } finally {
+      setDownloadingLinks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(linkKey);
+        return newSet;
+      });
+    }
   };
 
   const handleManualRefresh = async () => {
@@ -744,18 +812,26 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
                     </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {torrent.links.slice(0, 4).map((link, index) => (
-                      <a
-                        key={index}
-                        href={link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center py-2 px-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg"
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        {msg.download} {index + 1}
-                      </a>
-                    ))}
+                    {torrent.links.slice(0, 4).map((link, index) => {
+                      const linkKey = `${link}_${index}`;
+                      const isDownloading = downloadingLinks.has(linkKey);
+
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => handleDownloadLink(link, index)}
+                          disabled={isDownloading}
+                          className="flex items-center justify-center py-2 px-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isDownloading ? (
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Download className="h-4 w-4 mr-2" />
+                          )}
+                          {msg.download} {index + 1}
+                        </button>
+                      );
+                    })}
                   </div>
                   {torrent.links.length > 4 && (
                     <p className="text-xs text-gray-500 dark:text-gray-500 text-center">

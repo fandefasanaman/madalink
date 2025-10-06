@@ -11,7 +11,7 @@ interface UseAlldebridReturn {
   isLoading: boolean;
   error: string | null;
   quotaStatus: any;
-  unlockLink: (url: string) => Promise<UnlockResponse>;
+  unlockLink: (url: string, isTorrentLink?: boolean) => Promise<UnlockResponse>;
   addTorrent: (magnetLink: string) => Promise<TorrentInfo>;
   getTorrentStatus: (torrentId: string) => Promise<TorrentInfo>;
   getAllTorrentsStatus: () => Promise<TorrentInfo[]>;
@@ -81,8 +81,8 @@ export const useAlldebrid = (apiKey?: string): UseAlldebridReturn => {
     }
   }, [alldebridService]);
 
-  const unlockLink = useCallback(async (url: string): Promise<UnlockResponse> => {
-    console.log('useAlldebrid.unlockLink called with:', url);
+  const unlockLink = useCallback(async (url: string, isTorrentLink: boolean = false): Promise<UnlockResponse> => {
+    console.log('useAlldebrid.unlockLink called with:', url, 'isTorrentLink:', isTorrentLink);
     console.log('Service available:', !!alldebridService);
     console.log('User available:', !!user);
 
@@ -100,8 +100,8 @@ export const useAlldebrid = (apiKey?: string): UseAlldebridReturn => {
       return { success: false, error };
     }
 
-    // Vérifier les quotas locaux
-    if (!quotaMonitor.canUnlockLink(user.id, user.plan)) {
+    // Vérifier les quotas locaux seulement pour les liens normaux (pas les torrents)
+    if (!isTorrentLink && !quotaMonitor.canUnlockLink(user.id, user.plan)) {
       const error = 'Quota journalier de liens atteint. Upgradez votre plan pour plus de téléchargements.';
       setError(error);
       return {
@@ -115,7 +115,7 @@ export const useAlldebrid = (apiKey?: string): UseAlldebridReturn => {
 
     try {
       console.log('Calling alldebridService.unlockLink...');
-      const result = await alldebridService.unlockLink(url);
+      const result = await alldebridService.unlockLink(url, isTorrentLink);
       console.log('Service returned:', result);
 
       if (result.success) {
@@ -140,12 +140,14 @@ export const useAlldebrid = (apiKey?: string): UseAlldebridReturn => {
           // Continue même si Firebase échoue
         }
 
-        // Enregistrer l'utilisation du quota
-        quotaMonitor.recordLinkUnlock(user.id);
+        // Enregistrer l'utilisation du quota seulement pour les liens normaux
+        if (!isTorrentLink) {
+          quotaMonitor.recordLinkUnlock(user.id);
 
-        // Mettre à jour le statut des quotas
-        const newStatus = quotaMonitor.getQuotaStatus(user.id, user.plan);
-        setQuotaStatus(newStatus);
+          // Mettre à jour le statut des quotas
+          const newStatus = quotaMonitor.getQuotaStatus(user.id, user.plan);
+          setQuotaStatus(newStatus);
+        }
       } else {
         setError(result.error || 'Erreur inconnue');
       }

@@ -135,7 +135,29 @@ class AlldebridService {
     }
   }
 
-  async unlockLink(originalUrl: string): Promise<UnlockResponse> {
+  async unlockLink(originalUrl: string, isTorrentLink: boolean = false): Promise<UnlockResponse> {
+    // Si c'est un lien de torrent, on le traite différemment
+    if (isTorrentLink) {
+      // Les liens de torrents AllDebrid sont déjà des liens directs
+      // Ils commencent généralement par https://
+      if (originalUrl.startsWith('http://') || originalUrl.startsWith('https://')) {
+        return {
+          success: true,
+          data: {
+            link: originalUrl,
+            host: 'alldebrid',
+            filename: 'download',
+            filesize: 0
+          }
+        };
+      }
+      // Si c'est un ID, on doit le convertir
+      return {
+        success: false,
+        error: 'Format de lien torrent non supporté'
+      };
+    }
+
     if (!this.isValidUrl(originalUrl)) {
       return {
         success: false,
