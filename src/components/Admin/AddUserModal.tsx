@@ -11,7 +11,7 @@ export interface UserData {
   name: string;
   email: string;
   password: string;
-  plan: 'free' | 'trial' | 'bronze' | 'silver' | 'gold';
+  plan: 'free' | 'trial' | 'bronze' | 'silver';
   status: 'active' | 'pending';
 }
 

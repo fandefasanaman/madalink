@@ -188,7 +188,7 @@ const UserStats: React.FC<UserStatsProps> = ({ apiKey }) => {
             <div className="space-y-4">
               <div className="text-center py-8">
                 <p className="text-gray-600 dark:text-gray-400 mb-2">
-                  {user?.plan === 'gold' || user?.plan === 'silver' ? 'Quota Illimité' : 'Aucun quota disponible'}
+                  {user?.plan === 'silver' ? 'Quota Illimité' : 'Aucun quota disponible'}
                 </p>
                 {userInfo?.isPremium && (
                   <p className="text-sm text-green-600 dark:text-green-400 font-medium">
