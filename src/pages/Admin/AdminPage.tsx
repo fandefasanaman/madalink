@@ -85,7 +85,7 @@ const AdminPage: React.FC = () => {
     { title: 'Utilisateurs actifs', value: globalStats.totalUsers.toLocaleString(), change: '+12%', icon: Users, color: 'text-blue-500 bg-blue-100 dark:bg-blue-900/20' },
     { title: 'Liens déverrouillés', value: globalStats.totalDownloads.toLocaleString(), change: '+23%', icon: Link2, color: 'text-green-500 bg-green-100 dark:bg-green-900/20' },
     { title: 'Téléchargements aujourd\'hui', value: globalStats.todayDownloads.toLocaleString(), change: '+18%', icon: Download, color: 'text-green-500 bg-green-100 dark:bg-green-900/20' },
-    { title: 'API Alldebrid actives', value: '156', change: '+7%', icon: Activity, color: 'text-purple-500 bg-purple-100 dark:bg-purple-900/20' }
+    { title: 'API Service actives', value: '156', change: '+7%', icon: Activity, color: 'text-purple-500 bg-purple-100 dark:bg-purple-900/20' }
   ];
 
 
@@ -642,7 +642,7 @@ const AdminPage: React.FC = () => {
               { id: 'overview', label: 'Vue d\'ensemble', icon: TrendingUp },
               { id: 'payments', label: 'Validation paiements', icon: CreditCard },
               { id: 'users', label: 'Utilisateurs', icon: Users },
-              { id: 'alldebrid', label: 'Monitoring Alldebrid', icon: Link2 }
+              { id: 'alldebrid', label: 'Monitoring Service', icon: Link2 }
             ].map(tab => (
               <button
                 key={tab.id}

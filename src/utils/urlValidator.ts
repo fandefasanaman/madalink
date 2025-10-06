@@ -55,7 +55,7 @@ export class UrlValidator {
         isValid: true,
         host: cleanHostname,
         isSupported,
-        error: isSupported ? undefined : 'Hébergeur non supporté par Alldebrid'
+        error: isSupported ? undefined : 'Hébergeur non supporté'
       };
       
     } catch (error) {
