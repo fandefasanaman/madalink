@@ -14,8 +14,7 @@ class QuotaMonitor {
   private quotaLimits: Record<string, QuotaLimits> = {
     free: { dailyLinks: 2, dailyTorrents: 1, maxFileSize: 100 },
     bronze: { dailyLinks: 10, dailyTorrents: 2, maxFileSize: 500 },
-    silver: { dailyLinks: 50, dailyTorrents: 10, maxFileSize: 2000 },
-    gold: { dailyLinks: -1, dailyTorrents: -1, maxFileSize: -1 } // illimité
+    silver: { dailyLinks: 50, dailyTorrents: 10, maxFileSize: 2000 }
   };
 
   private userQuotas: Map<string, UserQuota> = new Map();

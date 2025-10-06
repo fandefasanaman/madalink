@@ -103,11 +103,19 @@ const DashboardPage: React.FC = () => {
     }
   }, [user, downloadQueue]);
 
+  const getPlanName = (plan: string) => {
+    switch (plan) {
+      case 'trial': return 'Essai 15 jours - 3 500 MGA';
+      case 'bronze': return 'Bronze - 7 000 MGA/mois';
+      case 'silver': return 'Silver - 10 000 MGA/mois';
+      default: return 'Free';
+    }
+  };
+
   const getPlanColor = (plan: string) => {
     switch (plan) {
       case 'bronze': return 'text-orange-500 bg-orange-100 dark:bg-orange-900/20';
       case 'silver': return 'text-gray-500 bg-gray-100 dark:bg-gray-800';
-      case 'gold': return 'text-yellow-500 bg-yellow-100 dark:bg-yellow-900/20';
       default: return 'text-green-500 bg-green-100 dark:bg-green-900/20';
     }
   };
@@ -116,7 +124,6 @@ const DashboardPage: React.FC = () => {
     switch (plan) {
       case 'bronze': return 50;
       case 'silver': return 'Illimité';
-      case 'gold': return 'Illimité';
       default: return 2;
     }
   };
@@ -125,7 +132,6 @@ const DashboardPage: React.FC = () => {
     switch (plan) {
       case 'bronze': return 50;
       case 'silver': return null;
-      case 'gold': return null;
       default: return 2;
     }
   };
@@ -153,7 +159,7 @@ const DashboardPage: React.FC = () => {
     },
     {
       title: 'Plan actuel',
-      value: user?.plan?.toUpperCase() || 'FREE',
+      value: getPlanName(user?.plan || 'free'),
       icon: Star,
       color: getPlanColor(user?.plan || 'free')
     },
@@ -367,7 +373,7 @@ const DashboardPage: React.FC = () => {
               <div className="text-center">
                 <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mb-3 ${getPlanColor(user?.plan || 'free')}`}>
                   <Star className="h-4 w-4 mr-1" />
-                  {user?.plan?.toUpperCase() || 'FREE'}
+                  {getPlanName(user?.plan || 'free')}
                 </div>
                 
                 <p className="text-2xl font-bold text-gray-900 dark:text-white mb-2">

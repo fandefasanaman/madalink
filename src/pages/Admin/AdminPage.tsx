@@ -524,9 +524,7 @@ const AdminPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
-                          user.plan === 'gold'
-                            ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400'
-                            : user.plan === 'silver'
+                          user.plan === 'silver'
                             ? 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-400'
                             : user.plan === 'bronze'
                             ? 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400'
@@ -589,9 +587,9 @@ const AdminPage: React.FC = () => {
     ];
 
     const topUsers = [
-      { name: 'Rakoto Andry', requests: 156, plan: 'Gold' },
+      { name: 'Rakoto Andry', requests: 156, plan: 'Silver' },
       { name: 'Hery Razafy', requests: 89, plan: 'Silver' },
-      { name: 'Soa Ranaivo', requests: 67, plan: 'Silver' },
+      { name: 'Soa Ranaivo', requests: 67, plan: 'Bronze' },
       { name: 'Nivo Ratsimba', requests: 45, plan: 'Bronze' }
     ];
 

@@ -33,7 +33,6 @@ const translations: Translations = {
   'plans.free': { fr: 'Gratuit', mg: 'Maimaim-poana' },
   'plans.bronze': { fr: 'Bronze', mg: 'Bronze' },
   'plans.silver': { fr: 'Silver', mg: 'Silver' },
-  'plans.gold': { fr: 'Gold', mg: 'Gold' },
 };
 
 interface LanguageContextType {

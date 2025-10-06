@@ -26,7 +26,7 @@ export interface UserProfile {
   id: string;
   email: string;
   name: string;
-  plan: 'free' | 'trial' | 'bronze' | 'silver' | 'gold';
+  plan: 'free' | 'trial' | 'bronze' | 'silver';
   isAdmin: boolean;
   subscriptionExpiry?: Date;
   totalDownloads?: number;

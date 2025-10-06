@@ -17,7 +17,7 @@ export interface Payment {
   userId: string;
   userEmail: string;
   userName: string;
-  plan: 'bronze' | 'silver' | 'gold';
+  plan: 'bronze' | 'silver';
   amount: number;
   paymentMethod: 'mvola' | 'orange' | 'airtel';
   reference: string;
@@ -38,7 +38,7 @@ export class FirebasePaymentService {
     userId: string;
     userEmail: string;
     userName: string;
-    plan: 'bronze' | 'silver' | 'gold';
+    plan: 'bronze' | 'silver';
     amount: number;
     paymentMethod: 'mvola' | 'orange' | 'airtel';
     reference: string;
