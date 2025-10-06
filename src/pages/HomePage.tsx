@@ -53,7 +53,7 @@ const HomePage: React.FC = () => {
       name: 'Essai 15 jours',
       price: '3 500',
       period: '15 jours',
-      features: ['Accès complet 15 jours', 'Vitesse 2 MB/s', '10 téléchargements/jour'],
+      features: ['Accès complet 15 jours', 'Vitesse maximale', '10 téléchargements/jour'],
       color: 'border-gray-300',
       popular: false
     },
@@ -61,7 +61,7 @@ const HomePage: React.FC = () => {
       name: 'Bronze',
       price: '7 000',
       period: 'mois',
-      features: ['50 téléchargements/jour', 'Vitesse 2 MB/s', 'Support par email'],
+      features: ['50 téléchargements/jour', 'Vitesse maximale', 'Support par email'],
       color: 'border-orange-400',
       popular: false
     },
@@ -69,7 +69,7 @@ const HomePage: React.FC = () => {
       name: 'Silver',
       price: '10 000',
       period: 'mois',
-      features: ['Téléchargements illimités', 'Vitesse 2 MB/s', 'Support prioritaire'],
+      features: ['Téléchargements illimités', 'Vitesse maximale', 'Support prioritaire'],
       color: 'border-gray-400',
       popular: true
     },
@@ -77,7 +77,7 @@ const HomePage: React.FC = () => {
       name: 'Gold',
       price: '15 000',
       period: 'mois',
-      features: ['Téléchargements illimités', 'Vitesse 10 MB/s', 'Support VIP 24/7'],
+      features: ['Téléchargements illimités', 'Vitesse maximale', 'Support VIP 24/7'],
       color: 'border-yellow-400',
       popular: false
     }

@@ -11,7 +11,7 @@ const PricingPage: React.FC = () => {
       description: 'Parfait pour découvrir',
       features: [
         'Accès complet pendant 15 jours',
-        'Vitesse limitée à 2 MB/s',
+        'Vitesse maximale',
         '10 téléchargements par jour',
         'Support communautaire',
         'Formats basiques supportés'
@@ -28,7 +28,7 @@ const PricingPage: React.FC = () => {
       description: 'Pour un usage régulier',
       features: [
         '50 téléchargements par jour',
-        'Vitesse normale (2 MB/s)',
+        'Vitesse maximale',
         'Support par email',
         'Tous formats supportés',
         'Historique de 30 jours'
@@ -45,7 +45,7 @@ const PricingPage: React.FC = () => {
       description: 'Le plus populaire',
       features: [
         'Téléchargements illimités',
-        'Vitesse normale (2 MB/s)',
+        'Vitesse maximale',
         'Support prioritaire',
         'Tous formats + conversions',
         'Historique illimité',
@@ -63,7 +63,7 @@ const PricingPage: React.FC = () => {
       description: 'Pour les utilisateurs intensifs',
       features: [
         'Téléchargements illimités',
-        'Vitesse maximale (10 MB/s)',
+        'Vitesse maximale',
         'Support VIP 24/7',
         'Toutes fonctionnalités premium',
         'API access',

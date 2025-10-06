@@ -21,6 +21,9 @@ const AdminPage: React.FC = () => {
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [addUserSuccess, setAddUserSuccess] = useState<string | null>(null);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   React.useEffect(() => {
     const loadStats = async () => {
@@ -33,6 +36,22 @@ const AdminPage: React.FC = () => {
     };
 
     loadStats();
+  }, []);
+
+  React.useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        setLoadingUsers(true);
+        const users = await FirebaseAuthService.getAllUsers();
+        setAllUsers(users);
+      } catch (error) {
+        console.error('Erreur lors du chargement des utilisateurs:', error);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+
+    loadUsers();
   }, []);
 
   React.useEffect(() => {
@@ -61,12 +80,13 @@ const AdminPage: React.FC = () => {
   ];
 
 
-  const recentUsers = [
-    { name: 'Rakoto Andry', email: 'rakoto@email.com', plan: 'Silver', status: 'Active', joined: '2025-01-12' },
-    { name: 'Hery Razafy', email: 'hery@email.com', plan: 'Gold', status: 'Active', joined: '2025-01-11' },
-    { name: 'Soa Ranaivo', email: 'soa@email.com', plan: 'Bronze', status: 'Pending', joined: '2025-01-11' },
-    { name: 'Nivo Ratsimba', email: 'nivo@email.com', plan: 'Free', status: 'Active', joined: '2025-01-10' }
-  ];
+  const recentUsers = allUsers.slice(0, 4).map(user => ({
+    name: user.name,
+    email: user.email,
+    plan: user.plan.charAt(0).toUpperCase() + user.plan.slice(1),
+    status: user.status === 'active' ? 'Active' : 'Pending',
+    joined: user.createdAt.toLocaleDateString('fr-FR')
+  }));
 
   const handleValidatePayment = async (paymentId: string, action: 'approve' | 'reject') => {
     if (!user) return;
@@ -99,6 +119,10 @@ const AdminPage: React.FC = () => {
 
       setAddUserSuccess(`Utilisateur ${userData.name} créé avec succès. Mot de passe temporaire: ${userData.password}`);
       setTimeout(() => setAddUserSuccess(null), 10000);
+
+      // Recharger la liste des utilisateurs
+      const users = await FirebaseAuthService.getAllUsers();
+      setAllUsers(users);
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {
         throw new Error('Cet email est déjà utilisé');
@@ -301,6 +325,8 @@ const AdminPage: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Rechercher un utilisateur..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 />
               </div>
@@ -328,54 +354,78 @@ const AdminPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {[...recentUsers, ...recentUsers].map((user, index) => (
-                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="px-6 py-4">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">{user.name}</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">{user.email}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      user.plan === 'Gold' 
-                        ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400'
-                        : user.plan === 'Silver'
-                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-400'
-                        : user.plan === 'Bronze'
-                        ? 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400'
-                        : 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400'
-                    }`}>
-                      {user.plan}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      user.status === 'Active' 
-                        ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400'
-                        : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400'
-                    }`}>
-                      {user.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                    {user.joined}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                    {Math.floor(Math.random() * 100) + 1}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-2">
-                      <button className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-lg">
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300">
-                        Suspendre
-                      </button>
-                    </div>
+              {loadingUsers ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center">
+                    <Clock className="h-12 w-12 mx-auto mb-4 text-gray-400 animate-spin" />
+                    <p className="text-gray-600 dark:text-gray-400">Chargement des utilisateurs...</p>
                   </td>
                 </tr>
-              ))}
+              ) : allUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center">
+                    <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <p className="text-gray-600 dark:text-gray-400">Aucun utilisateur trouvé</p>
+                  </td>
+                </tr>
+              ) : (
+                allUsers
+                  .filter(user =>
+                    searchQuery === '' ||
+                    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+                  )
+                  .map((user, index) => (
+                    <tr key={user.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-6 py-4">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">{user.name}</div>
+                          <div className="text-sm text-gray-600 dark:text-gray-400">{user.email}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
+                          user.plan === 'gold'
+                            ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400'
+                            : user.plan === 'silver'
+                            ? 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-400'
+                            : user.plan === 'bronze'
+                            ? 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400'
+                            : 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400'
+                        }`}>
+                          {user.plan}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
+                          user.status === 'active'
+                            ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400'
+                            : user.status === 'suspended'
+                            ? 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400'
+                            : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400'
+                        }`}>
+                          {user.status || 'active'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                        {user.createdAt.toLocaleDateString('fr-FR')}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                        {user.totalDownloads || 0}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-2">
+                          <button className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-lg">
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300">
+                            Suspendre
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+              )}
             </tbody>
           </table>
         </div>

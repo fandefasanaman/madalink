@@ -188,4 +188,47 @@ export class FirebaseAuthService {
     await reauthenticateWithCredential(user, credential);
     await updatePassword(user, newPassword);
   }
+
+  static async getAllUsers(): Promise<UserProfile[]> {
+    const { collection, getDocs, query, orderBy } = await import('firebase/firestore');
+
+    const usersQuery = query(
+      collection(db, USERS_COLLECTION),
+      orderBy('createdAt', 'desc')
+    );
+
+    const snapshot = await getDocs(usersQuery);
+
+    const convertToDate = (timestamp: any): Date => {
+      if (!timestamp) return new Date();
+      if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+        return timestamp.toDate();
+      }
+      if (timestamp instanceof Date) {
+        return timestamp;
+      }
+      if (timestamp.seconds) {
+        return new Date(timestamp.seconds * 1000);
+      }
+      return new Date();
+    };
+
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        email: data.email,
+        name: data.name,
+        plan: data.plan || 'free',
+        isAdmin: data.isAdmin || false,
+        status: data.status || 'active',
+        subscriptionExpiry: data.subscriptionExpiry ? convertToDate(data.subscriptionExpiry) : undefined,
+        totalDownloads: data.totalDownloads || 0,
+        totalBandwidth: data.totalBandwidth || 0,
+        createdAt: convertToDate(data.createdAt),
+        updatedAt: convertToDate(data.updatedAt),
+        passwordMustChange: data.passwordMustChange
+      };
+    });
+  }
 }
