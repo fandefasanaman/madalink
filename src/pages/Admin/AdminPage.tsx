@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
-import { Users, CreditCard, TrendingUp, Eye, CheckCircle, XCircle, Clock, Download, Search, Link2, Activity, Key, Save, EyeOff, UserPlus } from 'lucide-react';
+import { Users, CreditCard, TrendingUp, Eye, CheckCircle, XCircle, Clock, Download, Search, Link2, Activity, Key, Save, EyeOff, UserPlus, CreditCard as Edit2, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { FirebaseDownloadsService } from '../../services/firebaseDownloads';
 import AlldebridSettings from '../../components/Alldebrid/AlldebridSettings';
 import { FirebasePaymentService, Payment } from '../../services/firebasePaymentService';
 import { useAuth } from '../../contexts/AuthContext';
 import AddUserModal, { UserData } from '../../components/Admin/AddUserModal';
-import { FirebaseAuthService } from '../../services/firebaseAuth';
+import EditUserModal from '../../components/Admin/EditUserModal';
+import DeleteUserModal from '../../components/Admin/DeleteUserModal';
+import OrphanUsersPanel from '../../components/Admin/OrphanUsersPanel';
+import { FirebaseAuthService, UserProfile } from '../../services/firebaseAuth';
 
 const AdminPage: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [globalStats, setGlobalStats] = useState({
     totalDownloads: 0,
@@ -20,7 +25,11 @@ const AdminPage: React.FC = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [addUserSuccess, setAddUserSuccess] = useState<string | null>(null);
+  const [showOrphanWarning, setShowOrphanWarning] = useState(false);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,19 +47,19 @@ const AdminPage: React.FC = () => {
     loadStats();
   }, []);
 
-  React.useEffect(() => {
-    const loadUsers = async () => {
-      try {
-        setLoadingUsers(true);
-        const users = await FirebaseAuthService.getAllUsers();
-        setAllUsers(users);
-      } catch (error) {
-        console.error('Erreur lors du chargement des utilisateurs:', error);
-      } finally {
-        setLoadingUsers(false);
-      }
-    };
+  const loadUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const users = await FirebaseAuthService.getAllUsers();
+      setAllUsers(users);
+    } catch (error) {
+      console.error('Erreur lors du chargement des utilisateurs:', error);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
+  React.useEffect(() => {
     loadUsers();
   }, []);
 
@@ -109,6 +118,12 @@ const AdminPage: React.FC = () => {
 
   const handleAddUser = async (userData: UserData) => {
     try {
+      const existingUser = await FirebaseAuthService.getUserByEmail(userData.email);
+
+      if (existingUser) {
+        throw new Error('Cet email est déjà utilisé. L\'utilisateur existe déjà dans la base de données.');
+      }
+
       await FirebaseAuthService.createUserByAdmin(
         userData.email,
         userData.password,
@@ -117,21 +132,57 @@ const AdminPage: React.FC = () => {
         userData.status
       );
 
-      setAddUserSuccess(`Utilisateur ${userData.name} créé avec succès. Mot de passe temporaire: ${userData.password}`);
-      setTimeout(() => setAddUserSuccess(null), 10000);
+      alert(`Utilisateur ${userData.name} créé avec succès!\n\nMot de passe temporaire: ${userData.password}\n\nVous allez être redirigé vers la page de connexion pour vous reconnecter.`);
 
-      // Recharger la liste des utilisateurs
-      const users = await FirebaseAuthService.getAllUsers();
-      setAllUsers(users);
+      setTimeout(() => {
+        navigate('/login');
+      }, 1000);
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {
-        throw new Error('Cet email est déjà utilisé');
+        setShowOrphanWarning(true);
+        throw new Error('Cet email est déjà utilisé dans Firebase Auth. Un compte existe mais le profil est peut-être manquant.');
       } else if (error.code === 'auth/weak-password') {
         throw new Error('Le mot de passe est trop faible');
       } else {
         throw new Error(error.message || 'Erreur lors de la création de l\'utilisateur');
       }
     }
+  };
+
+  const handleEditUser = async (userId: string, updates: Partial<UserProfile>) => {
+    try {
+      await FirebaseAuthService.updateUserByAdmin(userId, updates);
+      setAddUserSuccess('Utilisateur modifié avec succès');
+      setTimeout(() => setAddUserSuccess(null), 5000);
+
+      const users = await FirebaseAuthService.getAllUsers();
+      setAllUsers(users);
+    } catch (error: any) {
+      throw new Error(error.message || 'Erreur lors de la modification de l\'utilisateur');
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      await FirebaseAuthService.deleteUser(userId);
+      setAddUserSuccess('Utilisateur supprimé avec succès');
+      setTimeout(() => setAddUserSuccess(null), 5000);
+
+      const users = await FirebaseAuthService.getAllUsers();
+      setAllUsers(users);
+    } catch (error: any) {
+      throw new Error(error.message || 'Erreur lors de la suppression de l\'utilisateur');
+    }
+  };
+
+  const openEditModal = (user: UserProfile) => {
+    setSelectedUser(user);
+    setShowEditUserModal(true);
+  };
+
+  const openDeleteModal = (user: UserProfile) => {
+    setSelectedUser(user);
+    setShowDeleteUserModal(true);
   };
 
   const renderOverview = () => (
@@ -312,6 +363,10 @@ const AdminPage: React.FC = () => {
         </div>
       )}
 
+      {showOrphanWarning && (
+        <OrphanUsersPanel onRefresh={loadUsers} />
+      )}
+
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between flex-wrap gap-4">
@@ -415,11 +470,19 @@ const AdminPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-2">
-                          <button className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-lg">
-                            <Eye className="h-4 w-4" />
+                          <button
+                            onClick={() => openEditModal(user)}
+                            className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-lg"
+                            title="Modifier"
+                          >
+                            <Edit2 className="h-4 w-4" />
                           </button>
-                          <button className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300">
-                            Suspendre
+                          <button
+                            onClick={() => openDeleteModal(user)}
+                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       </td>
@@ -538,6 +601,26 @@ const AdminPage: React.FC = () => {
         isOpen={showAddUserModal}
         onClose={() => setShowAddUserModal(false)}
         onAddUser={handleAddUser}
+      />
+
+      <EditUserModal
+        isOpen={showEditUserModal}
+        onClose={() => {
+          setShowEditUserModal(false);
+          setSelectedUser(null);
+        }}
+        onEditUser={handleEditUser}
+        user={selectedUser}
+      />
+
+      <DeleteUserModal
+        isOpen={showDeleteUserModal}
+        onClose={() => {
+          setShowDeleteUserModal(false);
+          setSelectedUser(null);
+        }}
+        onDeleteUser={handleDeleteUser}
+        user={selectedUser}
       />
 
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">

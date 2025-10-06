@@ -148,34 +148,42 @@ export class FirebaseAuthService {
     plan: UserProfile['plan'],
     status: 'active' | 'pending'
   ): Promise<UserProfile> {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+    const currentUser = auth.currentUser;
+    const currentUserEmail = currentUser?.email;
 
-    const userProfile: Omit<UserProfile, 'id'> = {
-      email: user.email!,
-      name,
-      plan,
-      isAdmin: false,
-      status,
-      totalDownloads: 0,
-      totalBandwidth: 0,
-      passwordMustChange: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-    await setDoc(doc(db, USERS_COLLECTION, user.uid), {
-      ...userProfile,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
+      const userProfile: Omit<UserProfile, 'id'> = {
+        email: user.email!,
+        name,
+        plan,
+        isAdmin: false,
+        status,
+        totalDownloads: 0,
+        totalBandwidth: 0,
+        passwordMustChange: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
 
-    await signOut(auth);
+      await setDoc(doc(db, USERS_COLLECTION, user.uid), {
+        ...userProfile,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
 
-    return {
-      id: user.uid,
-      ...userProfile
-    };
+      await signOut(auth);
+
+      return {
+        id: user.uid,
+        ...userProfile
+      };
+    } catch (error: any) {
+      console.error('Erreur lors de la création de l\'utilisateur:', error);
+      throw error;
+    }
   }
 
   static async changePassword(currentPassword: string, newPassword: string): Promise<void> {
@@ -230,5 +238,78 @@ export class FirebaseAuthService {
         passwordMustChange: data.passwordMustChange
       };
     });
+  }
+
+  static async updateUserByAdmin(userId: string, updates: Partial<UserProfile>): Promise<void> {
+    const { id, email, createdAt, ...updateData } = updates;
+
+    await updateDoc(doc(db, USERS_COLLECTION, userId), {
+      ...updateData,
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  static async deleteUser(userId: string): Promise<void> {
+    const { deleteDoc } = await import('firebase/firestore');
+    await deleteDoc(doc(db, USERS_COLLECTION, userId));
+  }
+
+  static async checkUserExists(email: string): Promise<boolean> {
+    const { collection, getDocs, query, where } = await import('firebase/firestore');
+
+    const usersQuery = query(
+      collection(db, USERS_COLLECTION),
+      where('email', '==', email)
+    );
+
+    const snapshot = await getDocs(usersQuery);
+    return !snapshot.empty;
+  }
+
+  static async getUserByEmail(email: string): Promise<UserProfile | null> {
+    const { collection, getDocs, query, where } = await import('firebase/firestore');
+
+    const usersQuery = query(
+      collection(db, USERS_COLLECTION),
+      where('email', '==', email)
+    );
+
+    const snapshot = await getDocs(usersQuery);
+
+    if (snapshot.empty) {
+      return null;
+    }
+
+    const doc = snapshot.docs[0];
+    const data = doc.data();
+
+    const convertToDate = (timestamp: any): Date => {
+      if (!timestamp) return new Date();
+      if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+        return timestamp.toDate();
+      }
+      if (timestamp instanceof Date) {
+        return timestamp;
+      }
+      if (timestamp.seconds) {
+        return new Date(timestamp.seconds * 1000);
+      }
+      return new Date();
+    };
+
+    return {
+      id: doc.id,
+      email: data.email,
+      name: data.name,
+      plan: data.plan || 'free',
+      isAdmin: data.isAdmin || false,
+      status: data.status || 'active',
+      subscriptionExpiry: data.subscriptionExpiry ? convertToDate(data.subscriptionExpiry) : undefined,
+      totalDownloads: data.totalDownloads || 0,
+      totalBandwidth: data.totalBandwidth || 0,
+      createdAt: convertToDate(data.createdAt),
+      updatedAt: convertToDate(data.updatedAt),
+      passwordMustChange: data.passwordMustChange
+    };
   }
 }
