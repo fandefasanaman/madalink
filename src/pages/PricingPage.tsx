@@ -7,7 +7,7 @@ const PricingPage: React.FC = () => {
     {
       name: 'Essai 15 jours',
       price: '3 500',
-      period: '15 jours',
+      period: 'MGA/15 jours',
       description: 'Parfait pour découvrir',
       features: [
         'Accès complet pendant 15 jours',
@@ -16,7 +16,7 @@ const PricingPage: React.FC = () => {
         'Support communautaire',
         'Formats basiques supportés'
       ],
-      color: 'border-gray-300',
+      color: 'border-gray-300 dark:border-gray-600',
       popular: false,
       buttonText: 'Commencer l\'essai',
       buttonColor: 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
@@ -24,7 +24,7 @@ const PricingPage: React.FC = () => {
     {
       name: 'Bronze',
       price: '7 000',
-      period: 'mois',
+      period: 'MGA/mois',
       description: 'Pour un usage régulier',
       features: [
         '50 téléchargements par jour',
@@ -41,7 +41,7 @@ const PricingPage: React.FC = () => {
     {
       name: 'Silver',
       price: '10 000',
-      period: 'mois',
+      period: 'MGA/mois',
       description: 'Le plus populaire',
       features: [
         'Téléchargements illimités',
@@ -50,7 +50,7 @@ const PricingPage: React.FC = () => {
         'Toutes fonctionnalités premium',
         'Reprise automatique'
       ],
-      color: 'border-gray-400',
+      color: 'border-red-500',
       popular: true,
       buttonText: 'Choisir Silver',
       buttonColor: 'bg-gradient-to-r from-gray-400 to-gray-600 text-white hover:from-gray-500 hover:to-gray-700'
@@ -122,7 +122,7 @@ const PricingPage: React.FC = () => {
                     {plan.price}
                   </span>
                   <span className="text-gray-600 dark:text-gray-400 ml-1">
-                    MGA/{plan.period}
+                    {plan.period}
                   </span>
                 </div>
 

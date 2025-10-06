@@ -140,17 +140,17 @@ const LoginPage: React.FC = () => {
           </form>
 
           {/* Sign up link */}
-          <div className="mt-6 text-center">
+          {/* <div className="mt-6 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Pas encore de compte ?{' '}
-              <Link 
-                to="/register" 
+              <Link
+                to="/register"
                 className="font-medium text-red-600 dark:text-red-400 hover:text-red-500 dark:hover:text-red-300"
               >
                 {t('nav.register')}
               </Link>
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
