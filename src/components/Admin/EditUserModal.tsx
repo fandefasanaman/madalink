@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { UserProfile } from '../../services/firebaseAuth';
 
 interface EditUserModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onEditUser: (userId: string, updates: Partial<UserProfile>) => Promise<void>;
+  onEditUser: (userId: string, updates: Partial<UserProfile>, newPassword?: string) => Promise<void>;
   user: UserProfile | null;
 }
 
@@ -22,6 +22,11 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onEditUs
     status: 'active' as 'active' | 'pending' | 'suspended',
     isAdmin: false
   });
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [changePassword, setChangePassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -33,8 +38,26 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onEditUs
         status: user.status || 'active',
         isAdmin: user.isAdmin
       });
+      setNewPassword('');
+      setConfirmPassword('');
+      setChangePassword(false);
     }
   }, [user]);
+
+  const generatePassword = (): string => {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
+  const handleGeneratePassword = () => {
+    const password = generatePassword();
+    setNewPassword(password);
+    setConfirmPassword(password);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,9 +70,26 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onEditUs
       return;
     }
 
+    if (changePassword) {
+      if (!newPassword) {
+        setError('Le nouveau mot de passe est requis');
+        return;
+      }
+
+      if (newPassword.length < 8) {
+        setError('Le mot de passe doit contenir au moins 8 caractères');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        setError('Les mots de passe ne correspondent pas');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
-      await onEditUser(user.id, formData);
+      await onEditUser(user.id, formData, changePassword ? newPassword : undefined);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Erreur lors de la modification de l\'utilisateur');
@@ -61,6 +101,9 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onEditUs
   const handleClose = () => {
     if (!loading) {
       setError('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setChangePassword(false);
       onClose();
     }
   };
@@ -167,7 +210,88 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onEditUs
             </label>
           </div>
 
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 rounded-lg">
+          {/* Password Change Section */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <div className="flex items-center space-x-2 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg mb-4">
+              <input
+                type="checkbox"
+                id="changePassword"
+                checked={changePassword}
+                onChange={(e) => setChangePassword(e.target.checked)}
+                disabled={loading}
+                className="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 dark:focus:ring-red-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              />
+              <label htmlFor="changePassword" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Changer le mot de passe
+              </label>
+            </div>
+
+            {changePassword && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Nouveau mot de passe *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-red-500 pr-10"
+                      placeholder="Minimum 8 caractères"
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Confirmer le mot de passe *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-red-500 pr-10"
+                      placeholder="Confirmer le mot de passe"
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGeneratePassword}
+                  disabled={loading}
+                  className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center space-x-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span>Générer un mot de passe sécurisé</span>
+                </button>
+
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Le nouveau mot de passe sera appliqué immédiatement. L'utilisateur devra l'utiliser pour sa prochaine connexion.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 rounded-lg mt-4">
             <p className="text-sm text-blue-800 dark:text-blue-400">
               <strong>Statistiques:</strong> {user.totalDownloads || 0} téléchargements
             </p>
