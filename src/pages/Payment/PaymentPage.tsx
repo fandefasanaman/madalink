@@ -15,9 +15,8 @@ const PaymentPage: React.FC = () => {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const plans = {
-    bronze: { name: 'Bronze', price: 1000, duration: 'mois' },
-    silver: { name: 'Silver', price: 3000, duration: 'mois' },
-    gold: { name: 'Gold', price: 8000, duration: 'mois' }
+    bronze: { name: 'Bronze', price: 7000, duration: 'mois' },
+    silver: { name: 'Silver', price: 10000, duration: 'mois' }
   };
 
   const paymentNumbers = {
@@ -45,7 +44,7 @@ const PaymentPage: React.FC = () => {
     setSubmitError(null);
 
     try {
-      const plan = selectedPlan as 'bronze' | 'silver' | 'gold';
+      const plan = selectedPlan as 'bronze' | 'silver';
       const method = paymentMethod as 'mvola' | 'orange' | 'airtel';
 
       await FirebasePaymentService.createPayment({
@@ -202,7 +201,6 @@ const PaymentPage: React.FC = () => {
                             <p className="text-sm text-gray-600 dark:text-gray-400">
                               {key === 'bronze' && 'Pour un usage régulier'}
                               {key === 'silver' && 'Le plus populaire'}
-                              {key === 'gold' && 'Pour les utilisateurs intensifs'}
                             </p>
                           </div>
                         </div>

@@ -69,17 +69,9 @@ const HomePage: React.FC = () => {
       name: 'Silver',
       price: '10 000',
       period: 'mois',
-      features: ['Téléchargements illimités', 'Vitesse maximale', 'Support prioritaire'],
+      features: ['Téléchargements illimités', 'Vitesse maximale', 'Support prioritaire', 'Toutes fonctionnalités premium', 'Reprise automatique'],
       color: 'border-gray-400',
       popular: true
-    },
-    {
-      name: 'Gold',
-      price: '15 000',
-      period: 'mois',
-      features: ['Téléchargements illimités', 'Vitesse maximale', 'Support VIP 24/7'],
-      color: 'border-yellow-400',
-      popular: false
     }
   ];
 
@@ -177,7 +169,7 @@ const HomePage: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {plans.map((plan, index) => (
               <div
                 key={index}

@@ -47,34 +47,13 @@ const PricingPage: React.FC = () => {
         'Téléchargements illimités',
         'Vitesse maximale',
         'Support prioritaire',
-        'Tous formats + conversions',
-        'Historique illimité',
-        'Téléchargement par lots'
+        'Toutes fonctionnalités premium',
+        'Reprise automatique'
       ],
       color: 'border-gray-400',
       popular: true,
       buttonText: 'Choisir Silver',
       buttonColor: 'bg-gradient-to-r from-gray-400 to-gray-600 text-white hover:from-gray-500 hover:to-gray-700'
-    },
-    {
-      name: 'Gold',
-      price: '15 000',
-      period: 'mois',
-      description: 'Pour les utilisateurs intensifs',
-      features: [
-        'Téléchargements illimités',
-        'Vitesse maximale',
-        'Support VIP 24/7',
-        'Toutes fonctionnalités premium',
-        'API access',
-        'Gestionnaire de téléchargement avancé',
-        'Reprise automatique',
-        'Comptes multiples'
-      ],
-      color: 'border-yellow-400',
-      popular: false,
-      buttonText: 'Choisir Gold',
-      buttonColor: 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-white hover:from-yellow-500 hover:to-yellow-700'
     }
   ];
 
@@ -113,7 +92,7 @@ const PricingPage: React.FC = () => {
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
           {plans.map((plan, index) => (
             <div
               key={index}
@@ -239,7 +218,7 @@ const PricingPage: React.FC = () => {
                   Quelle est la vitesse réelle de téléchargement ?
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 text-sm">
-                  La vitesse dépend de votre connexion internet. Nos serveurs sont optimisés pour Madagascar avec des vitesses allant de 500 KB/s (gratuit) à 10 MB/s (Gold).
+                  La vitesse dépend de votre connexion internet. Nos serveurs sont optimisés pour Madagascar avec des vitesses allant de 500 KB/s (gratuit) à 10 MB/s (Silver).
                 </p>
               </div>
             </div>
@@ -268,7 +247,7 @@ const PricingPage: React.FC = () => {
                   Puis-je partager mon compte ?
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 text-sm">
-                  Non, chaque compte est personnel. Le plan Gold permet jusqu'à 3 connexions simultanées pour votre usage personnel.
+                  Non, chaque compte est personnel. Chaque compte est strictement personnel et limité à une connexion à la fois.
                 </p>
               </div>
             </div>
