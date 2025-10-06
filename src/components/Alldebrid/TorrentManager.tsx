@@ -585,14 +585,14 @@ const TorrentManager: React.FC<TorrentManagerProps> = ({ apiKey }) => {
                 Configuration requise
               </h3>
               <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-3">
-                Veuillez entrer votre clé API Alldebrid pour utiliser le gestionnaire de torrents.
+                Veuillez entrer votre clé API pour utiliser le gestionnaire de torrents.
               </p>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={localApiKey}
                   onChange={(e) => setLocalApiKey(e.target.value)}
-                  placeholder="Votre clé API Alldebrid"
+                  placeholder="Votre clé API"
                   className="flex-1 px-3 py-2 border border-yellow-300 dark:border-yellow-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
                 <button

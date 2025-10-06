@@ -80,7 +80,7 @@ const AlldebridSettings: React.FC<AlldebridSettingsProps> = ({ onApiKeyChange })
         </div>
         <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
           <p className="text-red-800 dark:text-red-200">
-            La configuration de la clé API Alldebrid est gérée par les administrateurs.
+            La configuration de la clé API est gérée par les administrateurs.
             Si vous rencontrez des problèmes, contactez votre administrateur.
           </p>
         </div>
