@@ -10,6 +10,10 @@ const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [userId, setUserId] = useState<string | null>(null);
   
   const { login } = useAuth();
   const { t } = useLanguage();
@@ -21,10 +25,55 @@ const LoginPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await login(email, password);
+      const userProfile = await login(email, password);
+
+      if (userProfile?.passwordResetRequired) {
+        setUserId(userProfile.id);
+        setShowPasswordChange(true);
+        setIsLoading(false);
+        return;
+      }
+
       navigate('/dashboard');
     } catch (err) {
       setError('Email ou mot de passe incorrect');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!newPassword || !confirmNewPassword) {
+      setError('Tous les champs sont requis');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setError('Le mot de passe doit contenir au moins 8 caractères');
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setError('Les mots de passe ne correspondent pas');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { FirebaseAuthService } = await import('../../services/firebaseAuth');
+      if (userId) {
+        const success = await FirebaseAuthService.applyTempPassword(userId, password);
+        if (success) {
+          navigate('/dashboard');
+        } else {
+          setError('Erreur lors du changement de mot de passe');
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors du changement de mot de passe');
     } finally {
       setIsLoading(false);
     }

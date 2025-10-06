@@ -149,9 +149,14 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  const handleEditUser = async (userId: string, updates: Partial<UserProfile>) => {
+  const handleEditUser = async (userId: string, updates: Partial<UserProfile>, newPassword?: string) => {
     try {
       await FirebaseAuthService.updateUserByAdmin(userId, updates);
+
+      if (newPassword) {
+        await FirebaseAuthService.updateUserPassword(userId, newPassword);
+      }
+
       setAddUserSuccess('Utilisateur modifié avec succès');
       setTimeout(() => setAddUserSuccess(null), 5000);
 

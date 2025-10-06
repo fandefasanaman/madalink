@@ -7,8 +7,10 @@ import {
   Auth,
   updatePassword,
   reauthenticateWithCredential,
-  EmailAuthProvider
+  EmailAuthProvider,
+  getAuth
 } from 'firebase/auth';
+import CryptoJS from 'crypto-js';
 import {
   doc,
   getDoc,
@@ -31,6 +33,8 @@ export interface UserProfile {
   createdAt: Date;
   updatedAt: Date;
   passwordMustChange?: boolean;
+  passwordResetRequired?: boolean;
+  tempPasswordHash?: string;
   status?: 'active' | 'pending' | 'suspended';
 }
 
@@ -109,7 +113,10 @@ export class FirebaseAuthService {
       totalDownloads: data.totalDownloads || 0,
       totalBandwidth: data.totalBandwidth || 0,
       createdAt: convertToDate(data.createdAt),
-      updatedAt: convertToDate(data.updatedAt)
+      updatedAt: convertToDate(data.updatedAt),
+      passwordMustChange: data.passwordMustChange,
+      passwordResetRequired: data.passwordResetRequired,
+      tempPasswordHash: data.tempPasswordHash
     };
   }
 
@@ -252,6 +259,52 @@ export class FirebaseAuthService {
   static async deleteUser(userId: string): Promise<void> {
     const { deleteDoc } = await import('firebase/firestore');
     await deleteDoc(doc(db, USERS_COLLECTION, userId));
+  }
+
+  static async updateUserPassword(userId: string, newPassword: string): Promise<void> {
+    const hashedPassword = CryptoJS.SHA256(newPassword).toString();
+
+    await updateDoc(doc(db, USERS_COLLECTION, userId), {
+      tempPasswordHash: hashedPassword,
+      passwordMustChange: true,
+      passwordResetRequired: true,
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  static async applyTempPassword(userId: string, tempPassword: string): Promise<boolean> {
+    const userDoc = await getDoc(doc(db, USERS_COLLECTION, userId));
+
+    if (!userDoc.exists()) {
+      return false;
+    }
+
+    const data = userDoc.data();
+    const storedHash = data.tempPasswordHash;
+
+    if (!storedHash) {
+      return false;
+    }
+
+    const inputHash = CryptoJS.SHA256(tempPassword).toString();
+
+    if (inputHash === storedHash) {
+      const currentUser = getAuth().currentUser;
+      if (currentUser && currentUser.uid === userId) {
+        await updatePassword(currentUser, tempPassword);
+
+        await updateDoc(doc(db, USERS_COLLECTION, userId), {
+          tempPasswordHash: null,
+          passwordMustChange: false,
+          passwordResetRequired: false,
+          updatedAt: serverTimestamp()
+        });
+
+        return true;
+      }
+    }
+
+    return false;
   }
 
   static async checkUserExists(email: string): Promise<boolean> {

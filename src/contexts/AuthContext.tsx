@@ -5,7 +5,7 @@ import { FirebaseAuthService, UserProfile } from '../services/firebaseAuth';
 interface AuthContextType {
   user: UserProfile | null;
   firebaseUser: FirebaseUser | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<UserProfile>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
@@ -54,11 +54,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string): Promise<void> => {
+  const login = async (email: string, password: string): Promise<UserProfile> => {
     setLoading(true);
     try {
       const userProfile = await FirebaseAuthService.login(email, password);
       setUser(userProfile);
+      return userProfile;
     } catch (error) {
       throw error;
     } finally {
