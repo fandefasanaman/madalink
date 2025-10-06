@@ -16,11 +16,9 @@ export interface UserData {
 }
 
 const PLANS = [
-  { value: 'free', label: 'Gratuit', price: '0 MGA' },
   { value: 'trial', label: 'Essai 15 jours', price: '3 500 MGA' },
   { value: 'bronze', label: 'Bronze', price: '7 000 MGA/mois' },
-  { value: 'silver', label: 'Silver', price: '10 000 MGA/mois', popular: true },
-  { value: 'gold', label: 'Gold', price: '15 000 MGA/mois' }
+  { value: 'silver', label: 'Silver', price: '10 000 MGA/mois', popular: true }
 ];
 
 const generatePassword = (): string => {
@@ -37,7 +35,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onAddUser 
     name: '',
     email: '',
     password: '',
-    plan: 'free',
+    plan: 'trial',
     status: 'active'
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -72,7 +70,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onAddUser 
         name: '',
         email: '',
         password: '',
-        plan: 'free',
+        plan: 'trial',
         status: 'active'
       });
       setGeneratedPassword('');
@@ -90,7 +88,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onAddUser 
         name: '',
         email: '',
         password: '',
-        plan: 'free',
+        plan: 'trial',
         status: 'active'
       });
       setError('');

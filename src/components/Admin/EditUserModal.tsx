@@ -10,17 +10,15 @@ interface EditUserModalProps {
 }
 
 const PLANS = [
-  { value: 'free', label: 'Gratuit', price: '0 MGA' },
   { value: 'trial', label: 'Essai 15 jours', price: '3 500 MGA' },
   { value: 'bronze', label: 'Bronze', price: '7 000 MGA/mois' },
-  { value: 'silver', label: 'Silver', price: '10 000 MGA/mois', popular: true },
-  { value: 'gold', label: 'Gold', price: '15 000 MGA/mois' }
+  { value: 'silver', label: 'Silver', price: '10 000 MGA/mois', popular: true }
 ];
 
 const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onEditUser, user }) => {
   const [formData, setFormData] = useState({
     name: '',
-    plan: 'free' as UserProfile['plan'],
+    plan: 'trial' as UserProfile['plan'],
     status: 'active' as 'active' | 'pending' | 'suspended',
     isAdmin: false
   });
