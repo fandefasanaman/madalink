@@ -33,6 +33,8 @@ const AdminPage: React.FC = () => {
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [allPayments, setAllPayments] = useState<Payment[]>([]);
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
   React.useEffect(() => {
     const loadStats = async () => {
@@ -67,10 +69,18 @@ const AdminPage: React.FC = () => {
     const loadPayments = async () => {
       try {
         setLoadingPayments(true);
-        const data = await FirebasePaymentService.getPendingPayments();
-        setPayments(data);
-      } catch (error) {
+        setDebugInfo('Chargement des paiements...');
+
+        const allPaymentsData = await FirebasePaymentService.getAllPayments();
+        setAllPayments(allPaymentsData);
+        setDebugInfo(`Total paiements: ${allPaymentsData.length}`);
+
+        const pendingData = allPaymentsData.filter(p => p.status === 'pending');
+        setPayments(pendingData);
+        setDebugInfo(`Total: ${allPaymentsData.length} | En attente: ${pendingData.length}`);
+      } catch (error: any) {
         console.error('Erreur lors du chargement des paiements:', error);
+        setDebugInfo(`Erreur: ${error.message}`);
       } finally {
         setLoadingPayments(false);
       }
@@ -108,8 +118,11 @@ const AdminPage: React.FC = () => {
         rejectionReason: action === 'reject' ? 'Paiement refusé par l\'administrateur' : undefined
       });
 
-      const updatedPayments = await FirebasePaymentService.getPendingPayments();
-      setPayments(updatedPayments);
+      const allPaymentsData = await FirebasePaymentService.getAllPayments();
+      setAllPayments(allPaymentsData);
+      const pendingData = allPaymentsData.filter(p => p.status === 'pending');
+      setPayments(pendingData);
+      setDebugInfo(`Mis à jour - Total: ${allPaymentsData.length} | En attente: ${pendingData.length}`);
     } catch (error) {
       console.error('Erreur lors de la validation du paiement:', error);
       alert('Erreur lors de la validation du paiement');
@@ -254,6 +267,33 @@ const AdminPage: React.FC = () => {
 
     return (
       <div className="space-y-6">
+        {/* Debug Info */}
+        {debugInfo && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+              Debug: {debugInfo}
+            </p>
+          </div>
+        )}
+
+        {/* Tous les paiements pour debug */}
+        {allPayments.length > 0 && (
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Tous les paiements ({allPayments.length})</h4>
+            <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+              {allPayments.map(p => (
+                <div key={p.id} className="flex justify-between">
+                  <span>{p.userName} - {p.userEmail}</span>
+                  <span className={`font-medium ${
+                    p.status === 'pending' ? 'text-yellow-600' :
+                    p.status === 'validated' ? 'text-green-600' : 'text-red-600'
+                  }`}>{p.status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
@@ -261,19 +301,56 @@ const AdminPage: React.FC = () => {
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">Paiements en attente de validation</h3>
                 <p className="text-gray-600 dark:text-gray-400 mt-1">Validez ou rejetez les paiements des utilisateurs</p>
               </div>
-              <button
-                onClick={async () => {
-                  try {
-                    const data = await FirebasePaymentService.getPendingPayments();
-                    setPayments(data);
-                  } catch (error) {
-                    console.error('Erreur:', error);
-                  }
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Rafraîchir
-              </button>
+<div className="flex space-x-2">
+                <button
+                  onClick={async () => {
+                    if (!user) return;
+                    try {
+                      await FirebasePaymentService.createPayment({
+                        userId: user.id,
+                        userEmail: user.email,
+                        userName: user.name,
+                        plan: 'silver',
+                        amount: 10000,
+                        paymentMethod: 'mvola',
+                        reference: `TEST${Date.now()}`
+                      });
+                      setDebugInfo('Paiement test créé avec succès');
+
+                      const allPaymentsData = await FirebasePaymentService.getAllPayments();
+                      setAllPayments(allPaymentsData);
+                      const pendingData = allPaymentsData.filter(p => p.status === 'pending');
+                      setPayments(pendingData);
+                    } catch (error: any) {
+                      console.error('Erreur:', error);
+                      setDebugInfo(`Erreur lors de la création: ${error.message}`);
+                    }
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Créer test
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      setLoadingPayments(true);
+                      const allPaymentsData = await FirebasePaymentService.getAllPayments();
+                      setAllPayments(allPaymentsData);
+                      const pendingData = allPaymentsData.filter(p => p.status === 'pending');
+                      setPayments(pendingData);
+                      setDebugInfo(`Rafraîchi - Total: ${allPaymentsData.length} | En attente: ${pendingData.length}`);
+                    } catch (error: any) {
+                      console.error('Erreur:', error);
+                      setDebugInfo(`Erreur: ${error.message}`);
+                    } finally {
+                      setLoadingPayments(false);
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Rafraîchir
+                </button>
+              </div>
             </div>
           </div>
 

@@ -75,6 +75,7 @@ export class FirebasePaymentService {
 
   static async getPendingPayments(): Promise<Payment[]> {
     try {
+      console.log('Récupération des paiements en attente...');
       const q = query(
         collection(db, this.PAYMENTS_COLLECTION),
         where('status', '==', 'pending'),
@@ -91,33 +92,49 @@ export class FirebasePaymentService {
         } as Payment);
       });
 
+      console.log(`${payments.length} paiement(s) en attente trouvé(s)`);
       return payments;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur lors de la récupération des paiements en attente:', error);
+      if (error.code === 'failed-precondition') {
+        console.error('Index Firestore manquant. Créez un index composite pour la collection "payments" avec les champs: status (Ascending), createdAt (Descending)');
+      }
       throw error;
     }
   }
 
   static async getAllPayments(): Promise<Payment[]> {
     try {
-      const q = query(
-        collection(db, this.PAYMENTS_COLLECTION),
-        orderBy('createdAt', 'desc')
-      );
+      console.log('Récupération de tous les paiements...');
 
-      const querySnapshot = await getDocs(q);
+      const paymentsRef = collection(db, this.PAYMENTS_COLLECTION);
+      const querySnapshot = await getDocs(paymentsRef);
       const payments: Payment[] = [];
 
       querySnapshot.forEach((doc) => {
+        const data = doc.data();
         payments.push({
           id: doc.id,
-          ...doc.data()
+          ...data
         } as Payment);
       });
 
+      payments.sort((a, b) => {
+        const aTime = a.createdAt?.toMillis() || 0;
+        const bTime = b.createdAt?.toMillis() || 0;
+        return bTime - aTime;
+      });
+
+      console.log(`${payments.length} paiement(s) trouvé(s)`);
+      payments.forEach(p => {
+        console.log(`- ${p.userName} (${p.userEmail}): ${p.status} - ${p.amount} MGA`);
+      });
+
       return payments;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur lors de la récupération de tous les paiements:', error);
+      console.error('Code d\'erreur:', error.code);
+      console.error('Message:', error.message);
       throw error;
     }
   }
